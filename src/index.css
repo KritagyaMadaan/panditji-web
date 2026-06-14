@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Tiro+Devanagari+Sanskrit:ital@0;1&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-decorative: "Tiro Devanagari Sanskrit", serif;
+
+  --color-saffron: #FF6B00;
+  --color-gold: #D4A017;
+  --color-warm-white: #FFFDF7;
+  --color-text-dark: #1A1A1A;
+  --color-saffron-muted: rgba(255, 107, 0, 0.1);
+  --color-gold-muted: rgba(212, 160, 23, 0.1);
+
+  --animate-spin-slow: spin-slow 20s linear infinite;
+
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-warm-white text-text-dark font-sans;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-decorative tracking-tight;
+  }
+}
+
+.mandala-bg {
+  position: relative;
+}
+
+.mandala-bg::before {
+  content: "";
+  position: absolute;
+  top: -8rem;
+  right: -8rem;
+  width: 24rem;
+  height: 24rem;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23FF6B00' d='M100 0C100 0 110 30 140 30C170 30 170 0 170 0C170 0 170 30 200 30C200 30 170 40 170 70C170 100 200 100 200 100C200 100 170 110 170 140C170 170 200 170 200 170C200 170 170 170 170 200C170 200 160 170 130 170C100 170 100 200 100 200C100 200 90 170 60 170C30 170 30 200 30 200C30 200 30 170 0 170C0 170 30 160 30 130C30 100 0 100 0 100C0 100 30 90 30 60C30 30 0 30 0 30C0 30 30 30 30 0C30 0 40 30 70 30C100 30 100 0 100 0Z' /%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+

@@ -1,0 +1,6 @@
+{
+  "name": "BookPanditJi",
+  "description": "India's trusted marketplace for booking verified pandits, pujas, ceremonies, and astrology consultations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
