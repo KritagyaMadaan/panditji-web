@@ -58,7 +58,7 @@ export const astrologyModeEnum = pgEnum("astrology_mode", [
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   uid: text("uid").notNull().unique(), // Firebase Auth UID
-  phone: text("phone").notNull().unique(),
+  phone: text("phone").unique(),
   email: text("email"),
   name: text("name").notNull(),
   role: roleEnum("role").default("customer").notNull(),
