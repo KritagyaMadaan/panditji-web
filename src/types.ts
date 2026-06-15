@@ -4,7 +4,7 @@ export type BookingStatus = "pending" | "confirmed" | "in_progress" | "completed
 export interface User {
   id: number;
   uid: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   name: string;
   role: Role;
