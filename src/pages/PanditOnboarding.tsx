@@ -57,7 +57,6 @@ export default function PanditOnboarding() {
   // Form State
   const [formData, setFormData] = useState({
     fullName: "",
-    phone: "",
     email: "",
     city: "",
     experience: "",
@@ -134,7 +133,7 @@ export default function PanditOnboarding() {
           </div>
           <h2 className="text-4xl font-black text-text-dark tracking-tighter mb-6">Pending Verification</h2>
           <p className="text-lg text-text-dark/40 font-medium leading-relaxed mb-12">
-            Your profile is under review by our spiritual quality council. We'll notify you via WhatsApp within <span className="text-emerald-600 font-bold">24-48 hours</span> once your account is ready to accept bookings.
+            Your profile is under review by our spiritual quality council. We'll notify you via email within <span className="text-emerald-600 font-bold">24-48 hours</span> once your account is ready to accept bookings.
           </p>
           <button 
             onClick={() => navigate("/")}
@@ -153,7 +152,7 @@ export default function PanditOnboarding() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-emerald-100 px-6 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">ॐ</div>
-          <span className="font-black tracking-tighter text-xl">BookPandit<span className="text-emerald-600">Ji</span> <span className="text-text-dark/20 text-xs uppercase tracking-[0.1em] ml-2">Partner</span></span>
+          <span className="font-black tracking-tighter text-xl">BookPandit<span className="text-emerald-600">Ji</span> <span className="text-text-dark/20 text-xs uppercase tracking-widest ml-2">Partner</span></span>
         </Link>
         <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-text-dark/40">
            Step {currentStep} of 5
@@ -216,16 +215,7 @@ export default function PanditOnboarding() {
                       onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-text-dark/30">WhatsApp Phone Number</label>
-                    <input 
-                      type="tel" 
-                      placeholder="+91 00000 00000"
-                      className="w-full bg-slate-50/50 border-emerald-50 rounded-2xl py-4 px-6 font-bold focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    />
-                  </div>
+
                   <div className="space-y-3">
                     <label className="text-[10px] font-black uppercase tracking-widest text-text-dark/30">Email Address</label>
                     <input 
@@ -323,7 +313,7 @@ export default function PanditOnboarding() {
                       key={puja}
                       onClick={() => toggleSpecialization(puja)}
                       className={cn(
-                        "p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center text-center gap-4",
+                        "p-6 rounded-4xl border-2 transition-all flex flex-col items-center text-center gap-4",
                         formData.specializations.includes(puja)
                           ? "bg-emerald-50 border-emerald-600 shadow-xl shadow-emerald-600/5 scale-[1.02]"
                           : "bg-white border-emerald-50 hover:border-emerald-200"
@@ -554,7 +544,7 @@ export default function PanditOnboarding() {
                    <div className="space-y-8">
                       <div>
                          <div className="text-[10px] font-black uppercase tracking-widest text-text-dark/20 mb-4">Identity</div>
-                         <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-[2rem]">
+                         <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-4xl">
                             <div className="w-20 h-20 bg-emerald-600 rounded-full flex items-center justify-center text-4xl text-white shadow-xl">
                                {formData.profilePhoto ? <img src={URL.createObjectURL(formData.profilePhoto)} className="w-full h-full object-cover rounded-full" /> : "🧘‍♂️"}
                             </div>
@@ -620,14 +610,14 @@ export default function PanditOnboarding() {
             {currentStep === 5 ? (
               <button 
                 onClick={handleSubmit}
-                className="flex-grow max-w-[400px] px-12 py-5 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/30 hover:bg-emerald-700 transition-all flex items-center justify-center gap-4"
+                className="grow max-w-[400px] px-12 py-5 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/30 hover:bg-emerald-700 transition-all flex items-center justify-center gap-4"
               >
                 Submit for Verification
               </button>
             ) : (
               <button 
                 onClick={nextStep}
-                className="flex-grow max-w-[400px] px-12 py-5 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/30 hover:bg-emerald-700 transition-all flex items-center justify-center gap-4"
+                className="grow max-w-[400px] px-12 py-5 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-600/30 hover:bg-emerald-700 transition-all flex items-center justify-center gap-4"
               >
                 Continue <ChevronRight size={18} />
               </button>
