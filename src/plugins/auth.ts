@@ -42,15 +42,32 @@ const authPlugin: FastifyPluginCallback = (fastify, options, done) => {
       // Fetch or sync user from DB
       let user = (await db.select().from(users).where(eq(users.uid, decodedToken.uid)))[0];
       
-      if (!user && decodedToken.phone_number) {
+      if (!user) {
         // Auto-create user if they exist in Firebase but not in our DB
         const result = await db.insert(users).values({
           uid: decodedToken.uid,
-          phone: decodedToken.phone_number,
-          name: decodedToken.name || 'Valued User',
+          phone: decodedToken.phone_number || null,
+          name: decodedToken.name || decodedToken.email?.split('@')[0] || 'Devotee',
           email: decodedToken.email || null,
         }).returning();
         user = result[0];
+      } else {
+        // Update name/phone if they exist in Firebase but are missing or different in our DB
+        const updates: any = {};
+        if ((!user.name || user.name === 'Devotee') && decodedToken.name) {
+          updates.name = decodedToken.name;
+        }
+        if (!user.phone && decodedToken.phone_number) {
+          updates.phone = decodedToken.phone_number;
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          const result = await db.update(users)
+            .set(updates)
+            .where(eq(users.id, user.id))
+            .returning();
+          user = result[0];
+        }
       }
 
       if (!user) {
