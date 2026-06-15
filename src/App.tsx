@@ -4,16 +4,20 @@ import {
   signOut, 
   User as FirebaseUser 
 } from "firebase/auth";
-import { auth } from "./lib/firebase.ts";
+import { 
+  doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, serverTimestamp 
+} from "firebase/firestore";
+import { auth, db as firestoreDb } from "./lib/firebase.ts";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Calendar, 
-  User as UserIcon, 
-  LogOut, 
-  MapPin, 
-  Menu, 
   X,
-  Phone
+  Phone,
+  ChevronRight,
+  LogOut,
+  Menu,
+  MapPin,
+  User as UserIcon
 } from "lucide-react";
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { Service, User, Booking, Pandit } from "./types.ts";
@@ -35,6 +39,7 @@ import ReviewPage from "./pages/ReviewPage.tsx";
 import RemediesMarketplace from "./pages/RemediesMarketplace.tsx";
 import LoginModal from "./components/LoginModal.tsx";
 
+
 function AppContent() {
   const [fbUser, setFbUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -54,8 +59,8 @@ function AppContent() {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setFbUser(u);
       if (u) {
-        await syncUser(u);
-        fetchBookings(u);
+        await loadUserFromFirestore(u);
+        await fetchBookings(u);
       } else {
         setUser(null);
         setBookings([]);
@@ -70,24 +75,64 @@ function AppContent() {
     fetchPandits();
   }, []);
 
-  const syncUser = async (u: FirebaseUser) => {
+  // Save or update user document in Firestore
+  const saveUserToFirestore = async (
+    u: FirebaseUser, 
+    metadata?: { name?: string; phone?: string; role?: string; city?: string; spec?: string }
+  ) => {
     try {
-      const token = await u.getIdToken();
-      const res = await fetch("/api/auth/sync", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          phone: "91" + Math.floor(1000000000 + Math.random() * 9000000000), // Mock phone
-          name: u.displayName,
-        }),
-      });
-      const data = await res.json();
-      setUser(data);
+      const userRef = doc(firestoreDb, "users", u.uid);
+      const existing = await getDoc(userRef);
+
+      if (!existing.exists()) {
+        // New user — create the document
+        await setDoc(userRef, {
+          uid: u.uid,
+          email: u.email || null,
+          name: metadata?.name || u.displayName || "Devotee",
+          phone: metadata?.phone || u.phoneNumber || null,
+          role: metadata?.role || "customer",
+          city: metadata?.city || null,
+          specialization: metadata?.spec || null,
+          photoUrl: u.photoURL || null,
+          isVerified: false,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } else if (metadata && Object.keys(metadata).length > 0) {
+        // Existing user — update only provided fields
+        const updates: any = { updatedAt: serverTimestamp() };
+        if (metadata.name) updates.name = metadata.name;
+        if (metadata.phone) updates.phone = metadata.phone;
+        if (metadata.role) updates.role = metadata.role;
+        if (metadata.city) updates.city = metadata.city;
+        if (metadata.spec) updates.specialization = metadata.spec;
+        await updateDoc(userRef, updates);
+      }
+
+      // Read back the saved document and set the local state
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        setUser({ id: snap.id, ...snap.data() } as any);
+      }
     } catch (err) {
-      console.error("Sync error:", err);
+      console.error("Firestore save error:", err);
+    }
+  };
+
+  // Load user data from Firestore into local state
+  const loadUserFromFirestore = async (u: FirebaseUser) => {
+    try {
+      const userRef = doc(firestoreDb, "users", u.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        setUser({ id: snap.id, ...snap.data() } as any);
+      } else {
+        // User not in Firestore yet — create a basic record
+        await saveUserToFirestore(u);
+      }
+    } catch (err) {
+      console.error("Firestore load error:", err);
     }
   };
 
@@ -129,12 +174,13 @@ function AppContent() {
 
   const fetchBookings = async (u: FirebaseUser) => {
     try {
-      const token = await u.getIdToken();
-      const res = await fetch("/api/bookings", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setBookings(Array.isArray(data) ? data : (data.data && Array.isArray(data.data) ? data.data : []));
+      const q = query(
+        collection(firestoreDb, "bookings"),
+        where("customerId", "==", u.uid)
+      );
+      const snap = await getDocs(q);
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setBookings(data as any[]);
     } catch (err) {
       console.error("Fetch bookings error:", err);
       setBookings([]);
@@ -145,17 +191,21 @@ function AppContent() {
     setIsLoginModalOpen(true);
   };
 
-  const handleLoginSuccess = (userData: any) => {
-    setUser({
-      id: Math.floor(Math.random() * 10000),
-      uid: Math.random().toString(),
-      name: userData.name || "User",
-      email: "",
-      phone: userData.phone,
-      role: userData.role,
-      isVerified: true,
-      photoUrl: null
-    });
+  const handleLoginSuccess = async (userData: any) => {
+    const hasCustomData = userData.name || userData.phone || userData.role;
+    
+    if (fbUser && hasCustomData) {
+      // Directly save to Firestore with all signup details
+      await saveUserToFirestore(fbUser, {
+        name: userData.name,
+        phone: userData.phone,
+        role: userData.role || "customer",
+        city: userData.city,
+        spec: userData.spec,
+      });
+    }
+    
+    setIsLoginModalOpen(false);
     navigate("/dashboard");
   };
 
@@ -163,6 +213,7 @@ function AppContent() {
     await signOut(auth);
     setUser(null);
     setFbUser(null);
+    navigate("/");
   };
 
   const handleBook = async (service: Service) => {
@@ -237,6 +288,86 @@ function AppContent() {
         </div>
       </nav>
 
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, x: "100%" }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: "100%" }}
+            className="fixed inset-0 z-100 md:hidden bg-white"
+          >
+            <div className="p-6 flex flex-col h-full bg-linear-to-b from-white to-orange-50">
+              <div className="flex justify-between items-center mb-12">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-saffron rounded-lg flex items-center justify-center text-white font-bold text-xl">ॐ</div>
+                  <h1 className="text-2xl font-bold font-decorative tracking-tight text-text-dark">BookPanditJi</h1>
+                </div>
+                <button onClick={() => setIsMenuOpen(false)} className="w-12 h-12 bg-white rounded-2xl shadow-lg flex items-center justify-center text-text-dark">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-6">
+                <Link to="/find-pandit" onClick={() => setIsMenuOpen(false)} className="text-2xl font-black text-text-dark flex items-center justify-between">
+                  Find Pandit <ChevronRight className="text-saffron" />
+                </Link>
+                <Link to="/weddings" onClick={() => setIsMenuOpen(false)} className="text-2xl font-black text-text-dark flex items-center justify-between">
+                  Weddings <ChevronRight className="text-saffron" />
+                </Link>
+                <Link to="/astrology" onClick={() => setIsMenuOpen(false)} className="text-2xl font-black text-text-dark flex items-center justify-between">
+                  Astrology <ChevronRight className="text-saffron" />
+                </Link>
+                <Link to="/remedies" onClick={() => setIsMenuOpen(false)} className="text-2xl font-black text-text-dark flex items-center justify-between">
+                  Remedies <ChevronRight className="text-amber-500" />
+                </Link>
+                <Link to="/muhurat" onClick={() => setIsMenuOpen(false)} className="text-2xl font-black text-text-dark flex items-center justify-between">
+                  Muhurat <ChevronRight className="text-gold" />
+                </Link>
+              </div>
+
+              <div className="mt-auto pb-12">
+                {user ? (
+                  <div className="space-y-4">
+                    <Link 
+                      to="/dashboard" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-4 p-4 bg-white rounded-3xl shadow-sm border border-saffron/10"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-saffron/10 flex items-center justify-center text-saffron">
+                        <UserIcon size={24} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-lg font-bold text-text-dark">{user.name}</span>
+                        <span className="text-xs font-black text-saffron uppercase tracking-widest">{user.role}</span>
+                      </div>
+                    </Link>
+                    <button 
+                      onClick={() => {
+                        logout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full py-5 bg-white border-2 border-red-100 text-red-500 rounded-3xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                    >
+                      <LogOut size={18} /> Logout
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      login();
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full py-5 bg-saffron text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl shadow-saffron/20 border-b-4 border-saffron-muted"
+                  >
+                    Login / Signup
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <LoginModal 
         isOpen={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)} 
@@ -257,7 +388,7 @@ function AppContent() {
         <Route path="/pandit/dashboard" element={<PanditDashboard />} />
         <Route path="/pandit/plans" element={<PanditPlans />} />
         <Route path="/remedies" element={<RemediesMarketplace />} />
-        <Route path="/dashboard" element={<Dashboard userName={user?.name} />} />
+        <Route path="/dashboard" element={<Dashboard user={user} bookings={bookings} onUserUpdate={(updated) => setUser(prev => prev ? { ...prev, ...updated } : prev)} />} />
         <Route path="/booking/:id" element={<BookingDetails />} />
         <Route path="/review/:bookingId" element={<ReviewPage />} />
       </Routes>
@@ -265,14 +396,14 @@ function AppContent() {
       {/* Booking Modal (Simplified) */}
       <AnimatePresence>
         {isBookingModalOpen && selectedService && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-text-dark/20 backdrop-blur-sm">
+          <div className="fixed inset-0 z-100 flex items-center justify-center px-4 bg-text-dark/20 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-lg rounded-[2rem] overflow-hidden shadow-2xl"
+              className="bg-white w-full max-w-lg rounded-4xl overflow-hidden shadow-2xl"
             >
-              <div className="p-8 text-center bg-gradient-to-br from-saffron to-gold text-white relative">
+              <div className="p-8 text-center bg-linear-to-br from-saffron to-gold text-white relative">
                 <button onClick={() => setIsBookingModalOpen(false)} className="absolute right-6 top-6 hover:rotate-90 transition-transform">
                   <X />
                 </button>
