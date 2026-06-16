@@ -18,8 +18,19 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { cn } from "../lib/utils.ts";
+import { Link, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../lib/firebase.ts";
+import { auth, db } from "../lib/firebase.ts";
+import { doc, updateDoc } from "firebase/firestore";
+import { X, Save, Edit2, CheckCircle2 } from "lucide-react";
+
+const EXPERTISE_OPTIONS = [
+  "Griha Pravesh", "Vivah Sanskar", "Satyanarayan Puja", 
+  "Mundan", "Rudrabhishek", "Antyesti Kriya", 
+  "Vastu Shanti", "Navgrah Shanti", "Havan"
+];
+
+const LANGUAGE_OPTIONS = ["Sanskrit", "Hindi", "English", "Marathi", "Bengali", "Tamil", "Punjabi"];
 
 interface Request {
   id: string;
@@ -31,52 +42,51 @@ interface Request {
   price: number;
 }
 
-const initialRequests: Request[] = [
-  {
-    id: "req-1",
-    service: "Ganesh Chaturthi Puja",
-    customer: "Rahul Mehta",
-    time: "Today, 11:30 AM",
-    expiresIn: 1800,
-    status: 'pending',
-    price: 5100
-  },
-  {
-    id: "req-2",
-    service: "Griha Pravesh",
-    customer: "Sunita Verma",
-    time: "Tomorrow, 09:00 AM",
-    expiresIn: 1200,
-    status: 'pending',
-    price: 11000
-  }
-];
+const initialRequests: Request[] = [];
 
-const initialSchedule = [
-  {
-    id: "sch-1",
-    time: "10:30 AM",
-    service: "Satyanarayan Katha",
-    customer: "Rahul Mehta",
-    address: "Sector 62, Noida",
-    status: 'active'
-  },
-  {
-    id: "sch-2",
-    time: "02:45 PM",
-    service: "Vastu Shanti Puja",
-    customer: "Sunita Verma",
-    address: "Rohini, Delhi",
-    status: 'upcoming'
-  }
-];
+const initialSchedule: any[] = [];
 
 type BookingStatus = 'assigned' | 'en_route' | 'arrived' | 'started' | 'completed';
 
 export default function PanditDashboard({ user }: { user: any }) {
+  const navigate = useNavigate();
   const [isAvailable, setIsAvailable] = useState(true);
   const [requests, setRequests] = useState<Request[]>(initialRequests);
   const [activeBookingStatus, setActiveBookingStatus] = useState<BookingStatus>('en_route');
+  
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    phone: "",
+    city: "",
+    experience: 5,
+    expertise: [] as string[],
+    languages: [] as string[],
+    bio: "",
+    basePrice: 2100,
+    travelRadius: 25,
+    outstationTravel: false,
+    aadhaarNumber: ""
+  });
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || "",
+        phone: user.phone || "",
+        city: user.city || "",
+        experience: user.experience || 5,
+        expertise: user.expertise || [],
+        languages: user.languages || [],
+        bio: user.bio || "",
+        basePrice: user.basePrice || 2100,
+        travelRadius: user.travelRadius || 25,
+        outstationTravel: !!user.outstationTravel,
+        aadhaarNumber: user.aadhaarNumber || ""
+      });
+    }
+  }, [user, isProfileOpen]);
   
   // Countdown Timer for Requests
   useEffect(() => {
@@ -122,23 +132,29 @@ export default function PanditDashboard({ user }: { user: any }) {
               <Bell size={20} />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
            </button>
-           <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-outline-variant cursor-pointer group hover:border-primary transition-all">
-              <UserIcon size={20} className="group-hover:scale-110 transition-transform" />
-           </div>
+           <div 
+              onClick={() => setIsProfileOpen(true)}
+              className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-outline-variant cursor-pointer group hover:border-primary transition-all"
+            >
+               <UserIcon size={20} className="group-hover:scale-110 transition-transform" />
+            </div>
         </div>
       </nav>
 
       <div className="flex pt-16 min-h-screen">
         {/* Sidebar Navigation */}
-        <aside className="hidden lg:flex flex-col h-[calc(100vh-4rem)] py-8 border-r border-outline-variant/30 w-64 space-y-2 sticky top-16 bg-surface-container-low">
+        <aside className="hidden lg:flex flex-col fixed top-16 left-0 bottom-0 py-8 border-r border-outline-variant/30 w-64 space-y-2 bg-surface-container-low overflow-y-auto z-30">
            <div className="px-6 mb-8">
-              <div className="flex items-center gap-4 mb-6">
-                 <div className="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-white shadow-md">
+              <div 
+                 onClick={() => setIsProfileOpen(true)}
+                 className="flex items-center gap-4 mb-6 cursor-pointer group hover:opacity-85 transition-all"
+               >
+                 <div className="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-white shadow-md group-hover:scale-105 transition-all">
                     Pt
                  </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                       <span className="font-bold text-sm text-on-surface">{user?.name || "Pandit Ji"}</span>
+                       <span className="font-bold text-sm text-on-surface group-hover:text-primary transition-colors">{user?.name || "Pandit Ji"}</span>
                        <ShieldCheck size={14} className="text-primary" />
                     </div>
                     <div className="flex items-center gap-1 text-secondary">
@@ -177,21 +193,31 @@ export default function PanditDashboard({ user }: { user: any }) {
                  <DollarSign size={18} />
                  <span className="text-xs font-black uppercase tracking-widest">Earnings</span>
               </button>
+              <button 
+                 onClick={() => setIsProfileOpen(true)}
+                 className="w-full flex items-center gap-4 py-3 px-6 text-on-surface-variant hover:bg-surface-container-highest/20 rounded-full transition-all text-left"
+               >
+                 <UserIcon size={18} />
+                 <span className="text-xs font-black uppercase tracking-widest">Profile</span>
+              </button>
            </nav>
 
            <div className="p-4 border-t border-outline-variant/30">
               <button 
-                 onClick={() => signOut(auth)}
+                 onClick={async () => {
+                    await signOut(auth);
+                    navigate("/");
+                 }}
                  className="flex items-center gap-4 py-3 px-6 text-red-500 hover:bg-red-50 rounded-full w-full transition-colors group"
               >
                  <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-                 <span className="text-xs font-black uppercase tracking-widest">Leave Session</span>
+                 <span className="text-xs font-black uppercase tracking-widest">Sign Out</span>
               </button>
            </div>
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-6 md:p-10 mandala-pattern overflow-y-auto">
+        <main className="flex-1 lg:pl-64 p-6 md:p-10 mandala-pattern overflow-y-auto">
            <div className="max-w-6xl mx-auto space-y-10">
               
               {/* Stats Overview */}
@@ -225,7 +251,12 @@ export default function PanditDashboard({ user }: { user: any }) {
                  </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <AnimatePresence>
-                       {requests.map((req) => (
+                       {requests.length === 0 ? (
+                           <div className="col-span-2 text-center py-10 bg-white rounded-[2.5rem] sacred-shadow border border-outline-variant/20 p-8">
+                              <p className="text-sm font-semibold text-on-surface-variant/50">No active invitations at the moment.</p>
+                           </div>
+                        ) : (
+                           requests.map((req) => (
                           <motion.div 
                              key={req.id}
                              layout
@@ -271,7 +302,8 @@ export default function PanditDashboard({ user }: { user: any }) {
                                 </div>
                              )}
                           </motion.div>
-                       ))}
+                       ))
+                    )}
                     </AnimatePresence>
                  </div>
               </section>
@@ -281,9 +313,16 @@ export default function PanditDashboard({ user }: { user: any }) {
                  <div className="lg:col-span-2 space-y-6">
                     <h2 className="text-2xl font-black text-on-surface tracking-tight px-2">Divine Timeline</h2>
                     <div className="bg-white rounded-[3rem] sacred-shadow p-10 relative overflow-hidden">
-                       <div className="absolute left-[54px] top-10 bottom-10 w-px bg-outline-variant/30 dashed-border"></div>
+                       {initialSchedule.length > 0 && (
+                          <div className="absolute left-[54px] top-10 bottom-10 w-px bg-outline-variant/30 dashed-border"></div>
+                       )}
                        <div className="space-y-12 relative z-10">
-                          {initialSchedule.map((item, idx) => (
+                          {initialSchedule.length === 0 ? (
+                              <div className="text-center py-10">
+                                 <p className="text-sm font-semibold text-on-surface-variant/50">No scheduled rituals for today.</p>
+                              </div>
+                           ) : (
+                             initialSchedule.map((item, idx) => (
                              <div key={item.id} className="flex gap-10 group">
                                 <div className="flex flex-col items-center">
                                    <div className={cn(
@@ -322,7 +361,8 @@ export default function PanditDashboard({ user }: { user: any }) {
                                    )}
                                 </div>
                              </div>
-                          ))}
+                          ))
+                          )}
                        </div>
                     </div>
                  </div>
@@ -382,6 +422,7 @@ export default function PanditDashboard({ user }: { user: any }) {
          ].map((nav, i) => (
             <button 
                key={i} 
+               onClick={nav.label === "Sanctuary" ? () => setIsProfileOpen(true) : undefined}
                className={cn(
                   "flex flex-col items-center gap-1 transition-all",
                   nav.active ? "text-primary scale-110" : "text-on-surface-variant/30"
@@ -392,6 +433,299 @@ export default function PanditDashboard({ user }: { user: any }) {
             </button>
          ))}
       </nav>
+
+      {/* Profile Modal */}
+      <AnimatePresence>
+        {isProfileOpen && (
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-text-dark/40 backdrop-blur-md overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-2xl rounded-4xl overflow-hidden shadow-2xl border border-outline-variant/20 my-8 flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="p-6 md:p-8 bg-linear-to-br from-primary to-primary-container text-white flex justify-between items-center relative shrink-0">
+                <div>
+                  <h3 className="text-2xl md:text-3xl font-black font-decorative tracking-tight flex items-center gap-2">
+                    <UserIcon size={28} />
+                    Sacred Profile Details
+                  </h3>
+                  <p className="text-xs opacity-90 mt-1 uppercase tracking-widest font-black">Verify and update your spiritual credentials</p>
+                </div>
+                <button 
+                  onClick={() => setIsProfileOpen(false)} 
+                  className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center cursor-pointer hover:rotate-90"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <div className="p-6 md:p-8 overflow-y-auto space-y-6 text-sm text-on-surface">
+                {/* Personal Information */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-3 pb-1 border-b border-outline-variant/30">1. Personal Identity</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Full Name</label>
+                      <input 
+                        type="text" 
+                        value={profileForm.name} 
+                        onChange={(e) => setProfileForm(p => ({ ...p, name: e.target.value }))}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl py-3 px-4 font-bold text-on-surface focus:outline-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Email (Read Only)</label>
+                      <input 
+                        type="text" 
+                        value={user?.email || ""} 
+                        disabled
+                        className="w-full bg-surface-container-low border border-outline-variant/10 rounded-xl py-3 px-4 font-bold text-on-surface/50 cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Phone Number</label>
+                      <input 
+                        type="text" 
+                        value={profileForm.phone} 
+                        onChange={(e) => setProfileForm(p => ({ ...p, phone: e.target.value }))}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl py-3 px-4 font-bold text-on-surface focus:outline-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">City</label>
+                      <input 
+                        type="text" 
+                        value={profileForm.city} 
+                        onChange={(e) => setProfileForm(p => ({ ...p, city: e.target.value }))}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl py-3 px-4 font-bold text-on-surface focus:outline-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Professional Information */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-3 pb-1 border-b border-outline-variant/30">2. Ritual Heritage & Experience</h4>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Experience (Years)</label>
+                        <input 
+                          type="number" 
+                          value={profileForm.experience} 
+                          onChange={(e) => setProfileForm(p => ({ ...p, experience: parseInt(e.target.value) || 0 }))}
+                          className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl py-3 px-4 font-bold text-on-surface focus:outline-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Aadhaar Number (KYC)</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.aadhaarNumber} 
+                          onChange={(e) => setProfileForm(p => ({ ...p, aadhaarNumber: e.target.value }))}
+                          placeholder="Enter 12-digit Aadhaar"
+                          className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl py-3 px-4 font-bold text-on-surface focus:outline-primary"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Bio Description</label>
+                      <textarea 
+                        rows={3}
+                        value={profileForm.bio} 
+                        onChange={(e) => setProfileForm(p => ({ ...p, bio: e.target.value }))}
+                        placeholder="Write a brief bio about your ancestral lineage and puja style..."
+                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl py-3 px-4 font-semibold text-on-surface focus:outline-primary resize-none"
+                      />
+                    </div>
+
+                    {/* Expertise Selection */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">Expertise / Specializations</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {EXPERTISE_OPTIONS.map((opt) => {
+                          const isSelected = profileForm.expertise.includes(opt);
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => {
+                                setProfileForm(prev => {
+                                  const list = prev.expertise.includes(opt)
+                                    ? prev.expertise.filter(e => e !== opt)
+                                    : [...prev.expertise, opt];
+                                  return { ...prev, expertise: list };
+                                });
+                              }}
+                              className={cn(
+                                "py-2 px-3 rounded-lg border text-xs font-bold text-center transition-all cursor-pointer",
+                                isSelected 
+                                  ? "bg-primary/10 border-primary text-primary" 
+                                  : "border-outline-variant/30 text-on-surface-variant/70 hover:bg-surface-container-low"
+                              )}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Languages Selection */}
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">Languages</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {LANGUAGE_OPTIONS.map((opt) => {
+                          const isSelected = profileForm.languages.includes(opt);
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => {
+                                setProfileForm(prev => {
+                                  const list = prev.languages.includes(opt)
+                                    ? prev.languages.filter(l => l !== opt)
+                                    : [...prev.languages, opt];
+                                  return { ...prev, languages: list };
+                                });
+                              }}
+                              className={cn(
+                                "py-2 px-3 rounded-lg border text-xs font-bold text-center transition-all cursor-pointer",
+                                isSelected 
+                                  ? "bg-secondary-container/30 border-secondary text-secondary" 
+                                  : "border-outline-variant/30 text-on-surface-variant/70 hover:bg-surface-container-low"
+                              )}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Business details */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-3 pb-1 border-b border-outline-variant/30">3. Dakshina & Travel</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Base Price (₹)</label>
+                      <input 
+                        type="number" 
+                        value={profileForm.basePrice} 
+                        onChange={(e) => setProfileForm(p => ({ ...p, basePrice: parseInt(e.target.value) || 0 }))}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl py-3 px-4 font-bold text-on-surface focus:outline-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Travel Radius (km)</label>
+                      <input 
+                        type="number" 
+                        value={profileForm.travelRadius} 
+                        onChange={(e) => setProfileForm(p => ({ ...p, travelRadius: parseInt(e.target.value) || 0 }))}
+                        className="w-full bg-surface-container-lowest border border-outline-variant/30 rounded-xl py-3 px-4 font-bold text-on-surface focus:outline-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">Outstation Travel</label>
+                      <button
+                        type="button"
+                        onClick={() => setProfileForm(p => ({ ...p, outstationTravel: !p.outstationTravel }))}
+                        className={cn(
+                          "w-full py-3 px-4 rounded-xl border font-bold text-xs text-center transition-all cursor-pointer",
+                          profileForm.outstationTravel 
+                            ? "bg-green-500/10 border-green-500 text-green-700" 
+                            : "border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low"
+                        )}
+                      >
+                        {profileForm.outstationTravel ? "Available" : "Not Available"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-6 bg-surface-container-low border-t border-outline-variant/30 flex justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="px-6 py-3 border border-outline-variant/50 hover:bg-surface-container-highest/20 rounded-xl font-black text-xs uppercase tracking-widest text-on-surface-variant transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSavingProfile}
+                  onClick={async () => {
+                    const uid = auth.currentUser?.uid || user?.uid || user?.id;
+                    if (!uid) {
+                      alert("User ID not found. Please log in again.");
+                      return;
+                    }
+                    setIsSavingProfile(true);
+                    try {
+                      const userRef = doc(db, "users", uid);
+                      await updateDoc(userRef, {
+                        name: profileForm.name,
+                        phone: profileForm.phone,
+                        city: profileForm.city,
+                        experience: profileForm.experience,
+                        bio: profileForm.bio,
+                        expertise: profileForm.expertise,
+                        languages: profileForm.languages,
+                        basePrice: profileForm.basePrice,
+                        travelRadius: profileForm.travelRadius,
+                        outstationTravel: profileForm.outstationTravel,
+                        aadhaarNumber: profileForm.aadhaarNumber,
+                        updatedAt: new Date()
+                      });
+
+                      // Sync profile details to postgres database via backend
+                      const token = await auth.currentUser?.getIdToken();
+                      if (token) {
+                        await fetch("/api/v1/auth/sync", {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`
+                          },
+                          body: JSON.stringify({
+                            name: profileForm.name,
+                            phone: profileForm.phone,
+                            role: "pandit",
+                            city: profileForm.city,
+                            experience: profileForm.experience,
+                            bio: profileForm.bio,
+                            expertise: profileForm.expertise,
+                            languages: profileForm.languages,
+                            aadhaarNumber: profileForm.aadhaarNumber
+                          })
+                        });
+                      }
+
+                      setIsProfileOpen(false);
+                      window.location.reload(); // Refresh screen to sync stats/details
+                    } catch (err) {
+                      console.error("Failed to update profile", err);
+                      alert("Error updating profile. Please try again.");
+                    } finally {
+                      setIsSavingProfile(false);
+                    }
+                  }}
+                  className="px-6 py-3 bg-primary text-white hover:shadow-lg hover:shadow-primary/30 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingProfile ? "Saving..." : "Save Details"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
