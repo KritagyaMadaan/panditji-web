@@ -8,7 +8,7 @@ import {
   signInWithPopup,
   updateProfile
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { auth, googleAuthProvider, db as firestoreDb } from "../lib/firebase.ts";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 
@@ -50,7 +50,14 @@ export default function AuthPage() {
       setIsLoading(true);
       setError("");
       const result = await signInWithPopup(auth, googleAuthProvider);
-      navigate("/dashboard");
+      
+      // Check user role from Firestore
+      const userDoc = await getDoc(doc(firestoreDb, "users", result.user.uid));
+      if (userDoc.exists() && userDoc.data()?.role === "pandit") {
+        navigate("/pandit/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       setError(err.message || "Google sign-in failed");
     } finally {
@@ -88,8 +95,15 @@ export default function AuthPage() {
            navigate("/dashboard");
         }
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
-        navigate("/dashboard");
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        
+        // Check user role from Firestore
+        const userDoc = await getDoc(doc(firestoreDb, "users", result.user.uid));
+        if (userDoc.exists() && userDoc.data()?.role === "pandit") {
+          navigate("/pandit/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (err: any) {
       setError(err.message || "Authentication failed");
