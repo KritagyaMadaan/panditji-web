@@ -2,12 +2,13 @@ export type Role = "customer" | "pandit" | "admin";
 export type BookingStatus = "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
 
 export interface User {
-  id: number;
+  id: string | number;
   uid: string;
   phone: string | null;
   email: string | null;
   name: string;
   role: Role;
+  city: string | null;
   isVerified: boolean;
   photoUrl: string | null;
 }
@@ -23,7 +24,7 @@ export interface Service {
 }
 
 export interface Booking {
-  id: number;
+  id: string | number;
   customerId: number;
   panditId: number;
   serviceId: number;
@@ -40,4 +41,5 @@ export interface Pandit {
   bio: string | null;
   experience: number;
   rating: string | null;
+  specialization?: string;
 }
