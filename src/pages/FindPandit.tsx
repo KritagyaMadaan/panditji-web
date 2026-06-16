@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Search, 
@@ -133,12 +133,42 @@ const mockPandits: MockPandit[] = [
 ];
 
 export default function FindPandit() {
-  const [selectedCity, setSelectedCity] = useState("Delhi");
-  const [selectedService, setSelectedService] = useState("");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  const initialCity = searchParams.get("location") || "";
+  const initialService = searchParams.get("ritual") || "";
+  const initialDate = searchParams.get("date") || "";
+
+  // Filter input state (what user picks in dropdowns)
+  const [selectedCity, setSelectedCity] = useState(initialCity);
+  const [selectedService, setSelectedService] = useState(initialService);
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [selectedLang, setSelectedLang] = useState("");
   const [minRating, setMinRating] = useState("");
   const [sort, setSort] = useState("Relevance");
   const [isLoading, setIsLoading] = useState(true);
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  // Derived filtered results — now live again
+  const filteredPandits = mockPandits.filter(p => {
+    const matchesCity = !selectedCity || (selectedCity === "Delhi" ? p.id % 2 === 0 : p.id % 2 !== 0); // Mock logic for city
+    const matchesService = !selectedService || p.specializations.some(s => s.toLowerCase().includes(selectedService.toLowerCase()));
+    const matchesRating = !minRating || p.rating >= parseFloat(minRating.replace("+", ""));
+    const matchesLang = !selectedLang || p.languages.includes(selectedLang);
+    return matchesCity && matchesService && matchesRating && matchesLang;
+  });
+
+  // Sync state to URL params for persistence on reload
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedCity) params.set("location", selectedCity);
+    if (selectedService) params.set("ritual", selectedService);
+    if (selectedDate) params.set("date", selectedDate);
+    
+    // Use replace: true to avoid cluttering history
+    navigate({ search: params.toString() }, { replace: true });
+  }, [selectedCity, selectedService, selectedDate, navigate]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -158,6 +188,7 @@ export default function FindPandit() {
               onChange={(e) => setSelectedCity(e.target.value)}
               className="bg-transparent border-none text-sm font-bold text-text-dark focus:ring-0 appearance-none cursor-pointer"
             >
+              <option value="">Select Location</option>
               {cities.map(city => <option key={city} value={city}>{city}</option>)}
             </select>
             <ChevronDown size={14} className="text-text-dark/40" />
@@ -202,9 +233,21 @@ export default function FindPandit() {
             <ChevronDown size={14} className="text-text-dark/40" />
           </div>
 
-          <div className="relative">
+          <div 
+            onClick={() => { dateRef.current?.showPicker(); }}
+            className="relative bg-slate-50 border border-saffron/5 rounded-full py-2.5 px-10 hover:bg-slate-100 transition-colors cursor-pointer overflow-hidden"
+          >
             <Calendar size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-saffron" />
-            <input type="date" className="bg-slate-50 border border-saffron/5 rounded-full py-2.5 pl-10 pr-4 text-sm font-bold text-text-dark focus:ring-0" />
+            <input 
+              ref={dateRef}
+              type="date" 
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}
+            />
+            <div className="text-sm font-bold text-text-dark whitespace-nowrap">
+              {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "Select Date"}
+            </div>
           </div>
         </div>
       </div>
@@ -215,7 +258,7 @@ export default function FindPandit() {
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
           <div>
             <h2 className="text-2xl font-black text-text-dark">
-              Showing <span className="text-saffron">{mockPandits.length} pandits</span> in {selectedCity}
+              Showing <span className="text-saffron">{filteredPandits.length} pandits</span> in {selectedCity || "all cities"}
             </h2>
           </div>
           <div className="flex items-center gap-4">
@@ -250,8 +293,8 @@ export default function FindPandit() {
                   <div className="h-12 w-full bg-slate-100 rounded-2xl"></div>
                 </div>
               ))
-            ) : (
-              mockPandits.map((pandit, idx) => (
+            ) : filteredPandits.length > 0 ? (
+              filteredPandits.map((pandit, idx) => (
                 <motion.div
                   key={pandit.id}
                   initial={{ opacity: 0, y: 30 }}
@@ -319,6 +362,12 @@ export default function FindPandit() {
                   </div>
                 </motion.div>
               ))
+            ) : (
+              <div className="col-span-full py-20 text-center bg-slate-50 rounded-4xl border-2 border-dashed border-slate-200">
+                <div className="text-4xl mb-4">🕉️</div>
+                <h3 className="text-xl font-bold text-text-dark mb-2">No Pandits Found</h3>
+                <p className="text-text-dark/40 italic">Try adjusting your filters to discover more Acharyas.</p>
+              </div>
             )}
           </AnimatePresence>
         </div>
