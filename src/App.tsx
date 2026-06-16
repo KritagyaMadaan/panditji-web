@@ -37,7 +37,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import BookingDetails from "./pages/BookingDetails.tsx";
 import ReviewPage from "./pages/ReviewPage.tsx";
 import RemediesMarketplace from "./pages/RemediesMarketplace.tsx";
-import LoginModal from "./components/LoginModal.tsx";
+import AuthPage from "./pages/AuthPage.tsx";
 
 
 function AppContent() {
@@ -49,7 +49,6 @@ function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const navigate = useNavigate();
@@ -188,24 +187,11 @@ function AppContent() {
   };
 
   const login = () => {
-    setIsLoginModalOpen(true);
+    navigate("/login");
   };
 
   const handleLoginSuccess = async (userData: any) => {
-    const hasCustomData = userData.name || userData.phone || userData.role;
-    
-    if (fbUser && hasCustomData) {
-      // Directly save to Firestore with all signup details
-      await saveUserToFirestore(fbUser, {
-        name: userData.name,
-        phone: userData.phone,
-        role: userData.role || "customer",
-        city: userData.city,
-        spec: userData.spec,
-      });
-    }
-    
-    setIsLoginModalOpen(false);
+    // This is now handled within AuthPage.tsx, but kept for legacy or other flows
     navigate("/dashboard");
   };
 
@@ -238,10 +224,13 @@ function AppContent() {
     );
   }
 
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
+
   return (
     <div className="min-h-screen mandala-bg">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-saffron/10 h-20 flex items-center">
+      {!isAuthPage && (
+        <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-saffron/10 h-20 flex items-center">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full">
           <div className="flex justify-between items-center">
             <Link to="/" className="flex items-center gap-2">
@@ -287,6 +276,7 @@ function AppContent() {
           </div>
         </div>
       </nav>
+      )}
 
       <AnimatePresence>
         {isMenuOpen && (
@@ -368,13 +358,10 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-        onLoginSuccess={handleLoginSuccess}
-      />
-
       <Routes>
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/signup/devotee" element={<AuthPage />} />
+        <Route path="/signup/pandit" element={<PanditOnboarding user={user} onComplete={() => loadUserFromFirestore(fbUser!)} />} />
         <Route path="/" element={<Home services={services} pandits={pandits} onBook={() => navigate('/book')} onFindPandit={() => navigate('/find-pandit')} />} />
         <Route path="/find-pandit" element={<FindPandit />} />
         <Route path="/pandit/:id" element={<PanditProfile />} />
@@ -384,8 +371,8 @@ function AppContent() {
         <Route path="/kundali/preview" element={<KundaliPreview />} />
         <Route path="/weddings" element={<Weddings />} />
         <Route path="/muhurat" element={<MuhuratCalculator />} />
-        <Route path="/pandit/onboarding" element={<PanditOnboarding />} />
-        <Route path="/pandit/dashboard" element={<PanditDashboard />} />
+        <Route path="/pandit/onboarding" element={<PanditOnboarding user={user} onComplete={() => loadUserFromFirestore(fbUser!)} />} />
+        <Route path="/pandit/dashboard" element={<PanditDashboard user={user} />} />
         <Route path="/pandit/plans" element={<PanditPlans />} />
         <Route path="/remedies" element={<RemediesMarketplace />} />
         <Route path="/dashboard" element={<Dashboard user={user} bookings={bookings} onUserUpdate={(updated) => setUser(prev => prev ? { ...prev, ...updated } : prev)} />} />
@@ -449,67 +436,69 @@ function AppContent() {
       </AnimatePresence>
 
       {/* Footer */}
-      <footer className="bg-text-dark text-white pt-20 pb-10 px-4">
+      {!isAuthPage && (
+        <footer className="bg-inverse-surface text-on-inverse-surface pt-20 pb-10 px-4">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-saffron rounded-lg flex items-center justify-center text-white font-bold">B</div>
-              <Link to="/"><h1 className="text-2xl font-bold text-saffron tracking-tight">BookPanditJi</h1></Link>
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-on-primary font-bold">ॐ</div>
+              <Link to="/"><h1 className="text-2xl font-bold text-primary tracking-tight">BookPanditJi</h1></Link>
             </div>
-            <p className="text-white/50 text-sm leading-relaxed mb-6">
+            <p className="text-on-inverse-surface/60 text-sm leading-relaxed mb-6">
               Preserving tradition, simplifying devotion. India's favorite digital gateway to spiritual peace.
             </p>
             <div className="flex gap-4">
-              <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-saffron transition-colors cursor-pointer">
+              <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-primary transition-colors cursor-pointer">
                 <Phone size={18} />
               </div>
             </div>
           </div>
           <div>
             <h5 className="font-bold text-lg mb-6">Our Services</h5>
-            <ul className="space-y-4 text-white/60 text-sm">
-              <li className="hover:text-saffron cursor-pointer">Havan & Puja</li>
-              <li className="hover:text-saffron cursor-pointer">Astrology Charts</li>
-              <li className="hover:text-saffron cursor-pointer">Vastu Shastra</li>
-              <li className="hover:text-saffron cursor-pointer">Wedding Rituals</li>
+            <ul className="space-y-4 text-on-inverse-surface/50 text-sm">
+              <li className="hover:text-primary transition-colors cursor-pointer">Havan & Puja</li>
+              <li className="hover:text-primary transition-colors cursor-pointer">Astrology Charts</li>
+              <li className="hover:text-primary transition-colors cursor-pointer">Vastu Shastra</li>
+              <li className="hover:text-primary transition-colors cursor-pointer">Wedding Rituals</li>
             </ul>
           </div>
           <div>
             <h5 className="font-bold text-lg mb-6">Company</h5>
-            <ul className="space-y-4 text-white/60 text-sm">
-              <li className="hover:text-saffron cursor-pointer">About Us</li>
-              <li className="hover:text-saffron cursor-pointer">Verified Pandits</li>
-              <li className="hover:text-saffron cursor-pointer">
+            <ul className="space-y-4 text-on-inverse-surface/50 text-sm">
+              <li className="hover:text-primary transition-colors cursor-pointer">About Us</li>
+              <li className="hover:text-primary transition-colors cursor-pointer">Verified Pandits</li>
+              <li className="hover:text-primary transition-colors cursor-pointer">
                 <Link to="/pandit/onboarding">Join as Pandit</Link>
               </li>
-              <li className="hover:text-saffron cursor-pointer">Support</li>
+              <li className="hover:text-primary transition-colors cursor-pointer">Support</li>
             </ul>
           </div>
           <div>
             <h5 className="font-bold text-lg mb-6">Download Our App</h5>
-            <p className="text-white/60 text-sm mb-6">Get the BookPanditJi mobile experience for faster bookings.</p>
+            <p className="text-on-inverse-surface/50 text-sm mb-6">Get the BookPanditJi mobile experience for faster bookings.</p>
             <div className="space-y-3">
-              <div className="bg-white/10 p-3 rounded-xl border border-white/10 hover:bg-white/20 transition-all cursor-pointer flex items-center gap-3">
-                <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center text-xs font-bold">iOS</div>
+              <div className="bg-white/5 p-3 rounded-xl border border-white/5 hover:bg-white/10 transition-all cursor-pointer flex items-center gap-3">
+                <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-primary">iOS</div>
                 <div>
-                  <div className="text-[10px] uppercase opacity-50 font-bold">Download on</div>
-                  <div className="text-sm font-bold">App Store</div>
+                  <div className="text-[8px] uppercase opacity-40 font-black tracking-widest text-white">Download on</div>
+                  <div className="text-sm font-black">App Store</div>
                 </div>
               </div>
-              <div className="bg-white/10 p-3 rounded-xl border border-white/10 hover:bg-white/20 transition-all cursor-pointer flex items-center gap-3">
-                <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center text-xs font-bold">GP</div>
+              <div className="bg-white/5 p-3 rounded-xl border border-white/5 hover:bg-white/10 transition-all cursor-pointer flex items-center gap-3">
+                <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-primary">GP</div>
                 <div>
-                  <div className="text-[10px] uppercase opacity-50 font-bold">Get it on</div>
-                  <div className="text-sm font-bold">Google Play</div>
+                  <div className="text-[8px] uppercase opacity-40 font-black tracking-widest text-white">Get it on</div>
+                  <div className="text-sm font-black">Google Play</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div className="text-center pt-8 border-t border-white/5 text-xs text-white/30">
+        <div className="text-center pt-8 border-t border-on-inverse-surface/5 text-[10px] font-black uppercase tracking-[0.2em] text-on-inverse-surface/20">
           © 2026 BookPanditJi Pvt Ltd. All rights reserved. Spiritual peace at your doorstep.
         </div>
       </footer>
+      )}
     </div>
   );
 }
