@@ -139,6 +139,29 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
           onboardingCompleted: true,
           updatedAt: serverTimestamp()
         }, { merge: true });
+
+        // Sync onboarded details to postgres database via backend
+        const token = await auth.currentUser?.getIdToken();
+        if (token) {
+          await fetch("/api/v1/auth/sync", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              name: formData.name,
+              phone: formData.phone,
+              role: "pandit",
+              city: formData.city,
+              experience: formData.experience,
+              bio: formData.bio,
+              expertise: formData.expertise,
+              languages: formData.languages,
+              aadhaarNumber: formData.aadhaarNumber
+            })
+          });
+        }
       }
       
       setIsSuccess(true);
