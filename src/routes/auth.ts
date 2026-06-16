@@ -6,7 +6,17 @@ import { eq } from 'drizzle-orm';
 export default async function authRoutes(fastify: FastifyInstance) {
   // POST /api/v1/auth/sync
   fastify.post('/v1/auth/sync', { preHandler: [fastify.verifyJWT] }, async (request: any) => {
-    const { name, phone, role, city, spec } = request.body || {};
+    const { 
+      name, 
+      phone, 
+      role, 
+      city, 
+      experience, 
+      bio, 
+      expertise, 
+      languages: langs, 
+      aadhaarNumber 
+    } = request.body || {};
     
     // Always update if explicit values were provided (signup form data is authoritative)
     const userUpdates: any = {};
@@ -22,24 +32,30 @@ export default async function authRoutes(fastify: FastifyInstance) {
       if (result[0]) request.user = result[0];
     }
 
-    // Handle Pandit-specific onboarding data
+    // Handle Pandit-specific onboarding/profile data
     if (role === 'pandit' || request.user.role === 'pandit') {
       const existingProfile = (await db.select().from(panditProfiles).where(eq(panditProfiles.userId, request.user.id)))[0];
       
+      const profileData: any = {};
+      if (bio !== undefined) profileData.bio = bio || (city ? `Based in ${city}` : '');
+      if (experience !== undefined) profileData.experience = Number(experience) || 0;
+      if (langs !== undefined) profileData.languages = Array.isArray(langs) ? langs : [];
+      if (expertise !== undefined) profileData.specializations = Array.isArray(expertise) ? expertise : [];
+      if (aadhaarNumber) profileData.aadharStatus = 'verified';
+
       if (!existingProfile) {
         await db.insert(panditProfiles).values({
           userId: request.user.id,
-          specializations: spec ? [spec] : [],
-          bio: city ? `Based in ${city}` : '',
+          specializations: Array.isArray(expertise) ? expertise : [],
+          languages: Array.isArray(langs) ? langs : [],
+          bio: bio || (city ? `Based in ${city}` : ''),
+          experience: Number(experience) || 0,
+          aadharStatus: aadhaarNumber ? 'verified' : 'pending',
         });
-      } else if (spec) {
-        // Add specialization if not already present
-        const currentSpecs = (existingProfile.specializations as string[]) || [];
-        if (!currentSpecs.includes(spec)) {
-          await db.update(panditProfiles)
-            .set({ specializations: [...currentSpecs, spec] })
-            .where(eq(panditProfiles.userId, request.user.id));
-        }
+      } else {
+        await db.update(panditProfiles)
+          .set(profileData)
+          .where(eq(panditProfiles.userId, request.user.id));
       }
     }
     
