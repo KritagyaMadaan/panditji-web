@@ -1,16 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Tiro+Devanagari+Sanskrit:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-decorative: "Tiro Devanagari Sanskrit", serif;
+  --font-decorative: "Playfair Display", serif;
 
-  --color-saffron: #FF6B00;
-  --color-gold: #D4A017;
-  --color-warm-white: #FFFDF7;
-  --color-text-dark: #1A1A1A;
-  --color-saffron-muted: rgba(255, 107, 0, 0.1);
-  --color-gold-muted: rgba(212, 160, 23, 0.1);
+  /* Sacred Devotion Palette */
+  --color-primary: #a04100;
+  --color-primary-container: #ff6b00;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #572000;
+  
+  --color-secondary: #795900;
+  --color-secondary-container: #ffc641;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #715300;
+  
+  --color-tertiary: #0062a1;
+  --color-tertiary-container: #059eff;
+  
+  --color-surface: #fff8f6;
+  --color-surface-container-low: #fff1eb;
+  --color-surface-container: #ffeae1;
+  --color-surface-container-high: #fee3d8;
+  --color-surface-container-highest: #f8ddd2;
+  
+  --color-on-surface: #261812;
+  --color-on-surface-variant: #5a4136;
+  --color-outline: #8e7164;
+  --color-outline-variant: #e2bfb0;
+
+  /* Legacy Aliases */
+  --color-saffron: var(--color-primary);
+  --color-gold: var(--color-secondary);
+  --color-text-dark: var(--color-on-surface);
+  --color-inverse-surface: #3d2d26;
+  --color-on-inverse-surface: #ffede6;
 
   --animate-spin-slow: spin-slow 20s linear infinite;
 
@@ -22,7 +47,7 @@
 
 @layer base {
   body {
-    @apply bg-warm-white text-text-dark font-sans;
+    @apply bg-surface text-on-surface font-sans;
   }
   
   h1, h2, h3, h4 {
@@ -30,28 +55,16 @@
   }
 }
 
-.mandala-bg {
-  position: relative;
+.sacred-shadow {
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
 }
 
-.mandala-bg::before {
-  content: "";
-  position: absolute;
-  top: -8rem;
-  right: -8rem;
-  width: 24rem;
-  height: 24rem;
-  opacity: 0.03;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23FF6B00' d='M100 0C100 0 110 30 140 30C170 30 170 0 170 0C170 0 170 30 200 30C200 30 170 40 170 70C170 100 200 100 200 100C200 100 170 110 170 140C170 170 200 170 200 170C200 170 170 170 170 200C170 200 160 170 130 170C100 170 100 200 100 200C100 200 90 170 60 170C30 170 30 200 30 200C30 200 30 170 0 170C0 170 30 160 30 130C30 100 0 100 0 100C0 100 30 90 30 60C30 30 0 30 0 30C0 30 30 30 30 0C30 0 40 30 70 30C100 30 100 0 100 0Z' /%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-  z-index: 0;
+.mandala-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M200 0c110.457 0 200 89.543 200 200s-89.543 200-200 200S0 310.457 0 200 89.543 0 200 0zm0 20c-99.411 0-180 80.589-180 180s80.589 180 180 180 180-80.589 180-180S299.411 20 200 20zm0 20c88.366 0 160 71.634 160 160s-71.634 160-160 160S40 288.366 40 200s71.634-160 160-160zm0 20c-77.32 0-140 62.68-140 140s62.68 140 140 140 140-62.68 140-140-62.68-140-140-140zm0 20c66.274 0 120 53.726 120 120s-53.726 120-120 120-120-53.726-120-120 53.726-120 120-120zm0 20c-55.228 0-100 44.772-100 100s44.772 100 100 100 100-44.772 100-100-44.772-100-100-100zm0 20c44.183 0 80 35.817 80 80s-35.817 80-80 80-80-35.817-80-80 35.817-80 80-80z' fill='%23a04100' fill-opacity='0.04'/%3E%3C/svg%3E");
 }
-
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -59,10 +72,7 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--color-outline-variant);
   border-radius: 10px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.1);
-}
