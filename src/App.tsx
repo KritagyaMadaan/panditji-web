@@ -225,11 +225,18 @@ function AppContent() {
   }
 
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
+  const hideHeaderAndFooter = 
+    isAuthPage || 
+    location.pathname === "/dashboard" || 
+    location.pathname === "/pandit/dashboard" || 
+    location.pathname === "/pandit/onboarding" || 
+    location.pathname === "/pandit/plans" || 
+    location.pathname.startsWith("/signup/pandit");
 
   return (
     <div className="min-h-screen mandala-bg">
       {/* Navigation */}
-      {!isAuthPage && (
+      {!hideHeaderAndFooter && (
         <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-saffron/10 h-20 flex items-center">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 w-full">
           <div className="flex justify-between items-center">
@@ -239,15 +246,15 @@ function AppContent() {
             </Link>
 
             <div className="hidden md:flex items-center gap-10">
+              <Link to="/" className={`text-sm font-bold transition-colors ${location.pathname === '/' ? 'text-saffron' : 'text-text-dark/70 hover:text-saffron'}`}>Home</Link>
               <Link to="/find-pandit" className={`text-sm font-bold transition-colors ${location.pathname === '/find-pandit' ? 'text-saffron' : 'text-text-dark/70 hover:text-saffron'}`}>Find Pandit</Link>
-              <Link to="/" className="text-sm font-medium text-text-dark/70 hover:text-saffron transition-colors">Services</Link>
               <Link to="/weddings" className={`text-sm font-bold transition-colors ${location.pathname === '/weddings' ? 'text-saffron' : 'text-text-dark/70 hover:text-saffron'}`}>Weddings</Link>
               <Link to="/astrology" className={`text-sm font-bold transition-colors ${location.pathname === '/astrology' ? 'text-saffron' : 'text-text-dark/70 hover:text-saffron'}`}>Astrology</Link>
               <Link to="/remedies" className={`text-sm font-bold transition-colors ${location.pathname === '/remedies' ? 'text-amber-500' : 'text-text-dark/70 hover:text-amber-500'}`}>Remedies</Link>
               <Link to="/muhurat" className={`text-sm font-bold transition-colors ${location.pathname === '/muhurat' ? 'text-gold' : 'text-text-dark/70 hover:text-gold'}`}>Muhurat</Link>
               {user ? (
                 <div className="flex items-center gap-4">
-                  <Link to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                  <Link to={user.role === "pandit" ? "/pandit/dashboard" : "/dashboard"} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <div className="w-8 h-8 rounded-full bg-saffron/10 flex items-center justify-center text-saffron">
                       <UserIcon size={16} />
                     </div>
@@ -298,6 +305,9 @@ function AppContent() {
               </div>
 
               <div className="flex flex-col gap-6">
+                <Link to="/" onClick={() => setIsMenuOpen(false)} className="text-2xl font-black text-text-dark flex items-center justify-between">
+                  Home <ChevronRight className="text-saffron" />
+                </Link>
                 <Link to="/find-pandit" onClick={() => setIsMenuOpen(false)} className="text-2xl font-black text-text-dark flex items-center justify-between">
                   Find Pandit <ChevronRight className="text-saffron" />
                 </Link>
@@ -318,11 +328,11 @@ function AppContent() {
               <div className="mt-auto pb-12">
                 {user ? (
                   <div className="space-y-4">
-                    <Link 
-                      to="/dashboard" 
-                      onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-4 p-4 bg-white rounded-3xl shadow-sm border border-saffron/10"
-                    >
+                     <Link 
+                       to={user.role === "pandit" ? "/pandit/dashboard" : "/dashboard"} 
+                       onClick={() => setIsMenuOpen(false)}
+                       className="flex items-center gap-4 p-4 bg-white rounded-3xl shadow-sm border border-saffron/10"
+                     >
                       <div className="w-12 h-12 rounded-2xl bg-saffron/10 flex items-center justify-center text-saffron">
                         <UserIcon size={24} />
                       </div>
@@ -436,7 +446,7 @@ function AppContent() {
       </AnimatePresence>
 
       {/* Footer */}
-      {!isAuthPage && (
+      {!hideHeaderAndFooter && (
         <footer className="bg-inverse-surface text-on-inverse-surface pt-20 pb-10 px-4">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="md:col-span-1">
@@ -447,11 +457,6 @@ function AppContent() {
             <p className="text-on-inverse-surface/60 text-sm leading-relaxed mb-6">
               Preserving tradition, simplifying devotion. India's favorite digital gateway to spiritual peace.
             </p>
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-primary transition-colors cursor-pointer">
-                <Phone size={18} />
-              </div>
-            </div>
           </div>
           <div>
             <h5 className="font-bold text-lg mb-6">Our Services</h5>
