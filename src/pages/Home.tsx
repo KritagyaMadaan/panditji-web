@@ -1,13 +1,6 @@
-import { motion, AnimatePresence } from "motion/react";
-import { 
-  Search, 
-  Calendar, 
-  CheckCircle, 
-  Star, 
-  Clock, 
-  MapPin, 
-  Sparkles 
-} from "lucide-react";
+import React, { useState, useRef } from "react";
+import { motion } from "motion/react";
+import { Link, useNavigate } from "react-router-dom";
 import { Service, Pandit } from "../types.ts";
 
 interface HomeProps {
@@ -18,332 +11,392 @@ interface HomeProps {
 }
 
 export default function Home({ services, pandits, onBook, onFindPandit }: HomeProps) {
-  return (
-    <>
-      {/* Hero Section */}
-      <main className="relative z-10 overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-12 items-center max-w-7xl mx-auto px-4 lg:px-12">
-          <div className="lg:col-span-7 py-20 lg:py-32">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <div className="inline-flex items-center px-4 py-2 bg-saffron/10 text-saffron rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-8 border border-saffron/10">
-                <Sparkles size={14} className="mr-2" />
-                India's #1 Devotional Marketplace
-              </div>
-              <h2 className="text-6xl md:text-8xl font-black mb-8 text-text-dark leading-[0.9] tracking-tighter">
-                Book a Verified <span className="text-saffron italic">Pandit</span> In 3 Clicks.
-              </h2>
-              <p className="text-xl text-text-dark/60 mb-12 max-w-lg leading-relaxed font-medium">
-                Authentic Vedic rituals performed by certified experts at your home. Simplified devotion for the modern devotee.
-              </p>
+  const navigate = useNavigate();
+  const [showAnnouncement, setShowAnnouncement] = useState(true);
+  const [searchLocation, setSearchLocation] = useState("");
+  const [searchRitual, setSearchRitual] = useState("");
+  const [searchDate, setSearchDate] = useState("");
 
-              <div className="flex flex-col sm:flex-row gap-4 bg-white p-2 rounded-[2.5rem] shadow-2xl shadow-saffron/10 border border-saffron/5 max-w-2xl relative z-20">
-                <div className="relative flex-1 group">
-                  <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-saffron" size={20} />
-                  <select className="w-full bg-slate-50/50 border-none rounded-[1.8rem] py-4 pl-14 pr-6 font-bold text-text-dark focus:ring-0 appearance-none cursor-pointer">
-                    <option>Delhi NCR</option>
-                    <option>Mumbai</option>
-                    <option>Bangalore</option>
-                    <option>Hyderabad</option>
-                    <option>Pune</option>
-                    <option>Jaipur</option>
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (searchLocation) params.append("location", searchLocation);
+    if (searchRitual) params.append("ritual", searchRitual);
+    if (searchDate) params.append("date", searchDate);
+
+    navigate(`/find-pandit?${params.toString()}`);
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="bg-surface font-sans selection:bg-primary-container selection:text-on-primary-container overflow-x-hidden">
+      {/* ANNOUNCEMENT BAR */}
+      {showAnnouncement && (
+        <div className="bg-[#FFF3E0] py-3 px-4 flex justify-center items-center relative z-50">
+          <p className="text-primary font-bold text-center text-xs sm:text-sm">
+            🪔 Now serving Delhi, Noida, Ghaziabad, Meerut & Bangalore — Book your ceremony today
+          </p>
+          <button
+            className="absolute right-4 text-primary hover:opacity-70 transition-opacity"
+            onClick={() => setShowAnnouncement(false)}
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      )}
+
+      {/* HERO SECTION */}
+      <section className="bg-[#FFF8F0] pt-12 pb-24 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 grid lg:grid-cols-2 gap-16 items-center">
+          {/* Left Column */}
+          <div className="space-y-8">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-outline-variant sacred-shadow"
+            >
+              <span className="text-primary">✨</span>
+              <span className="text-[10px] font-black text-on-surface-variant/60 tracking-wider uppercase">India's #1 Devotional Marketplace</span>
+            </motion.div>
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="font-decorative text-5xl md:text-7xl lg:text-[72px] leading-tight text-on-surface"
+            >
+              Book a Verified <span className="text-primary italic underline decoration-secondary/30 underline-offset-8">Pandit</span> In 3 Clicks.
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-lg text-on-surface-variant max-w-lg leading-relaxed"
+            >
+              Authentic Vedic rituals performed by certified experts at your doorstep. Trusted by 50,000+ families across India.
+            </motion.p>
+
+            <div className="flex flex-wrap gap-6 text-on-surface font-bold text-sm">
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span> 100% Certified
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span> Vedic Parampara
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span> Fixed Prices
+              </span>
+            </div>
+
+            {/* Search Bar */}
+            <div className="bg-white p-3 rounded-3xl sacred-shadow flex flex-col lg:flex-row items-stretch lg:items-center border border-outline-variant gap-2 relative z-50">
+              <div className="flex-1 min-w-[160px] p-4 flex items-center gap-3 border-b lg:border-b-0 lg:border-r border-outline-variant hover:bg-surface-container-low transition-colors rounded-2xl lg:rounded-none lg:rounded-l-2xl">
+                <span className="material-symbols-outlined text-primary">location_on</span>
+                <div className="flex-1 relative">
+                  <div className="text-[10px] uppercase font-black text-outline/60 tracking-widest">Location</div>
+                  <select
+                    value={searchLocation}
+                    onChange={(e) => setSearchLocation(e.target.value)}
+                    className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-base text-on-surface cursor-pointer"
+                  >
+                    <option value="" disabled selected>Select Location</option>
+                    <option value="delhi">Delhi NCR</option>
+                    <option value="noida">Noida</option>
+                    <option value="ghaziabad">Ghaziabad</option>
+                    <option value="meerut">Meerut</option>
+                    <option value="bangalore">Bangalore</option>
                   </select>
                 </div>
-                <div className="relative flex-[1.5] group border-l border-saffron/10 ml-2">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-text-dark/30 group-focus-within:text-saffron transition-colors" size={20} />
-                  <input 
-                    type="text" 
-                    placeholder="Search Puja rituals..."
-                    className="w-full bg-white border-none rounded-[1.8rem] py-4 pl-14 pr-6 font-bold text-text-dark focus:ring-0 placeholder:text-text-dark/20"
-                  />
-                </div>
-                <button 
-                  onClick={onFindPandit}
-                  className="bg-saffron text-white px-8 py-4 rounded-[1.8rem] font-black text-lg hover:bg-text-dark transition-all duration-500 shadow-lg shadow-saffron/40"
-                >
-                  Search
-                </button>
               </div>
+              <div className="flex-[1.5] min-w-[200px] p-4 flex items-center gap-3 border-b lg:border-b-0 lg:border-r border-outline-variant hover:bg-surface-container-low transition-colors rounded-2xl lg:rounded-none">
+                <span className="material-symbols-outlined text-primary">search</span>
+                <div className="flex-1 relative">
+                  <div className="text-[10px] uppercase font-black text-outline/60 tracking-widest">Puja Ritual</div>
+                  <select
+                    value={searchRitual}
+                    onChange={(e) => setSearchRitual(e.target.value)}
+                    className="w-full bg-transparent border-none p-0 focus:ring-0 font-black text-base text-on-surface cursor-pointer"
+                  >
+                    <option value="" disabled selected>Select Ritual</option>
+                    <option value="griha-pravesh">Griha Pravesh</option>
+                    <option value="satyanarayan">Satyanarayan Katha</option>
+                    <option value="marriage">Marriage Puja</option>
+                    <option value="rudrabhishek">Rudrabhishek</option>
+                  </select>
+                </div>
+              </div>
+              <div 
+                onClick={() => { dateRef.current?.showPicker(); }}
+                className="flex-1 min-w-[180px] p-4 flex items-center gap-3 hover:bg-surface-container-low transition-colors rounded-2xl cursor-pointer relative overflow-hidden"
+              >
+                <input 
+                  ref={dateRef}
+                  type="date" 
+                  min={today}
+                  value={searchDate}
+                  onChange={(e) => setSearchDate(e.target.value)}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}
+                />
+                <span className="material-symbols-outlined text-primary">calendar_today</span>
+                <div className="flex-1">
+                  <div className="text-[10px] uppercase font-black text-outline/60 tracking-widest">Date</div>
+                  <div className="font-black text-base text-on-surface">
+                    {searchDate ? new Date(searchDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : "Select Date"}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={handleSearch}
+                className="lg:w-auto bg-primary text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-primary-container transition-all active:scale-95 shadow-xl shadow-primary/20"
+              >
+                Search <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+            </div>
+          </div>
 
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap gap-8 mt-12 opacity-60">
-                <div className="flex items-center gap-3">
-                  <CheckCircle size={20} className="text-green-500" />
-                  <span className="text-xs font-black uppercase tracking-[0.1em]">100% Certified</span>
+          {/* Right Column */}
+          <div className="relative flex justify-center items-center">
+            {/* Background Decoration */}
+            <div className="absolute w-[120%] h-[120%] opacity-40 animate-spin-slow mandala-pattern"></div>
+            <div className="absolute w-80 h-80 bg-surface-container rounded-full blur-3xl opacity-60"></div>
+
+            {/* Main Pandit Card */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="relative w-full max-w-md bg-white p-6 rounded-[32px] sacred-shadow border border-outline-variant z-10 hover:translate-y-[-4px] transition-transform"
+            >
+              <div className="flex gap-4">
+                <div className="relative">
+                  <img
+                    className="w-24 h-24 rounded-2xl object-cover border-2 border-secondary/20"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAG2kegPf-MRufi8UzPyYPfiTA1kmwZJzcSoFuG4YWENp_B8YwvjeDwCVZlYQ8SEnIA-mBBcrF9ecus8IwigGuKyn1iRONhQKE_9FYr0mdJxuKoY2EN7B3k84q_pLz5ZKeTSqtqsP2D_51RoDLQxiEKb4ZI0dWI60E-ZsN_dPSb--5wDiVSFz9UbBMVeslcd3nXhJzPqD8b2tIv96zLTa1DqBIHGKG-CI-WfI3uYKCFKZ0bh0oZkagS3FDPNQ09Q4o96VB32WdAGhw"
+                    alt="Pandit Profile"
+                  />
+                  <div className="absolute -bottom-2 -right-2 bg-white p-1 rounded-lg shadow-sm">
+                    <span className="material-symbols-outlined text-green-600 text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle size={20} className="text-green-500" />
-                  <span className="text-xs font-black uppercase tracking-[0.1em]">Vedic Parampara</span>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-xl font-bold text-on-surface">Pt. Rajesh Kumar Sharma</h3>
+                    <div className="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-md border border-secondary/20">
+                      <span className="material-symbols-outlined text-secondary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                      <span className="font-bold text-xs">4.9</span>
+                    </div>
+                  </div>
+                  <p className="text-on-surface-variant font-bold text-xs mt-1">Griha Pravesh Specialist</p>
+                  <p className="text-outline text-[10px] uppercase font-black tracking-widest mt-1">(284 genuine reviews)</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle size={20} className="text-green-500" />
-                  <span className="text-xs font-black uppercase tracking-[0.1em]">Fixed Prices</span>
+              </div>
+              <div className="mt-6 flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-on-surface-variant font-bold text-xs bg-surface-container-low/50 p-2 rounded-lg">
+                  <span className="material-symbols-outlined text-outline text-lg">fact_check</span>
+                  KYC & Aadhaar Verified
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span className="text-xs font-bold text-green-700">Available Today</span>
+                  </div>
+                  <div className="bg-primary/5 px-3 py-1 rounded-md text-primary font-black text-[10px] uppercase tracking-widest">
+                    Next slot 4:30 PM
+                  </div>
                 </div>
               </div>
             </motion.div>
-          </div>
 
-          <div className="lg:col-span-5 relative py-20 lg:py-0 flex justify-center h-full min-h-[500px]">
-             {/* Animated Floating Card */}
-             <motion.div
-               animate={{ 
-                 y: [0, -20, 0],
-                 rotate: [0, 1, 0, -1, 0]
-               }}
-               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-               className="relative z-20 w-80 sm:w-96 self-center"
-             >
-                <div className="bg-white rounded-[3rem] shadow-[0_40px_80px_-20px_rgba(255,107,0,0.15)] border border-saffron/10 p-10 overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gold/5 blur-2xl group-hover:bg-saffron/10 transition-colors"></div>
-                  <div className="w-24 h-24 bg-saffron/5 rounded-full mb-8 flex items-center justify-center border-2 border-saffron/10 overflow-hidden shadow-inner">
-                     <span className="text-5xl">🧘‍♂️</span>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="h-4 w-24 bg-saffron/10 rounded-full"></div>
-                    <div className="h-8 w-48 bg-text-dark/5 rounded-2xl"></div>
-                    <div className="h-4 w-full bg-text-dark/5 rounded-full"></div>
-                    <div className="h-4 w-2/3 bg-text-dark/5 rounded-full"></div>
-                  </div>
-                  <div className="mt-10 pt-8 border-t border-dashed border-saffron/20 flex justify-between items-center text-gold">
-                    <div className="flex gap-1">
-                      {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
-                    </div>
-                    <span className="text-xs font-black uppercase tracking-wider">Top Rated</span>
-                  </div>
-                </div>
-                {/* Secondary floating accent */}
-                <motion.div 
-                  animate={{ y: [0, 15, 0] }}
-                  transition={{ duration: 4, repeat: Infinity }}
-                  className="absolute -bottom-10 -left-10 bg-text-dark text-white p-6 rounded-3xl shadow-2xl flex items-center gap-4 border border-white/10"
-                >
-                  <Calendar className="text-saffron" size={24} />
-                  <div>
-                    <div className="text-[10px] font-black uppercase tracking-widest opacity-50">Next Slot</div>
-                    <div className="text-sm font-bold">Today, 4:30 PM</div>
-                  </div>
-                </motion.div>
-             </motion.div>
-
-             {/* Background Mandala Fragment */}
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] opacity-[0.05] select-none pointer-events-none rotate-12">
-                <svg viewBox="0 0 200 200" className="w-full h-full text-saffron fill-current">
-                   <path d="M100 0 A100 100 0 0 1 100 200 A100 100 0 0 1 100 0 M100 20 L120 80 L180 100 L120 120 L100 180 L80 120 L20 100 L80 80 Z" />
-                </svg>
-             </div>
+            {/* Floating Badges */}
+            <div className="absolute -top-6 -right-6 bg-white p-4 rounded-2xl sacred-shadow border border-secondary/20 z-20 hidden md:block">
+              <div className="text-[8px] uppercase font-black text-secondary tracking-widest mb-1">TOP RATED</div>
+              <div className="text-on-surface font-bold text-sm">Gold Certified</div>
+            </div>
           </div>
         </div>
-      </main>
+      </section>
 
-      {/* Service Category Grid */}
-      <section className="bg-white py-32 border-y border-saffron/5">
-        <div className="max-w-7xl mx-auto px-4 lg:px-12">
-          <div className="text-center mb-20">
-            <h3 className="text-5xl font-black text-text-dark mb-6">Sacred Services</h3>
-            <p className="text-text-dark/40 text-xl font-medium max-w-2xl mx-auto leading-relaxed">
-              Find spiritual peace through our curated selection of verified Vedic ceremonies.
-            </p>
+      {/* STATS BAR */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 -mt-12 relative z-20">
+        <div className="bg-white border border-outline-variant rounded-[2.5rem] py-12 px-6 flex flex-wrap justify-around items-center gap-12 sacred-shadow">
+          <div className="text-center group">
+            <div className="text-5xl font-black text-on-surface leading-none group-hover:text-primary transition-colors italic tracking-tighter">5000+</div>
+            <div className="text-on-surface-variant/60 font-black uppercase tracking-widest text-[10px] mt-3">Verified Pandits</div>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+          <div className="text-center group">
+            <div className="text-5xl font-black text-on-surface leading-none group-hover:text-primary transition-colors italic tracking-tighter">12k+</div>
+            <div className="text-on-surface-variant/60 font-black uppercase tracking-widest text-[10px] mt-3">Pujas Completed</div>
+          </div>
+          <div className="text-primary text-6xl animate-pulse hidden md:block">🪔</div>
+          <div className="text-center group">
+            <div className="text-5xl font-black text-on-surface leading-none group-hover:text-primary transition-colors italic tracking-tighter">4.9/5</div>
+            <div className="text-on-surface-variant/60 font-black uppercase tracking-widest text-[10px] mt-3">Average Rating</div>
+          </div>
+        </div>
+      </section>
+
+      {/* SACRED SERVICES SECTION */}
+      <section className="py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
+            <div className="space-y-4">
+              <h2 className="text-4xl font-black text-on-surface italic tracking-tight">Sacred Services</h2>
+              <p className="text-on-surface-variant/60 font-bold text-sm max-w-md">Browse our comprehensive list of Vedic rituals performed by certified Acharyas with full purity and precision.</p>
+            </div>
+            <button
+              onClick={onFindPandit}
+              className="text-primary font-black uppercase tracking-widest text-[10px] flex items-center gap-2 hover:gap-4 transition-all group"
+            >
+              Explore All Rituals <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_right_alt</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             {[
-              { name: "Griha Pravesh", icon: "🏠", color: "bg-blue-50" },
-              { name: "Satyanarayan", icon: "📖", color: "bg-orange-50" },
-              { name: "Rudrabhishek", icon: "🔱", color: "bg-red-50" },
-              { name: "Navgraha Puja", icon: "🪐", color: "bg-indigo-50" },
-              { name: "Lakshmi Puja", icon: "💰", color: "bg-yellow-50" },
-              { name: "Mundan", icon: "✂️", color: "bg-slate-50" },
-              { name: "Naamkaran", icon: "👶", color: "bg-pink-50" },
-              { name: "Shradh", icon: "🕯️", color: "bg-gray-50" },
-              { name: "Havan", icon: "🔥", color: "bg-amber-50" },
-              { name: "Marriage Puja", icon: "💍", color: "bg-rose-50" }
-            ].map((cat) => (
+              { id: 1, name: "Griha Pravesh", icon: "🏠", price: "5,100", time: "120" },
+              { id: 2, name: "Satyanarayan Katha", icon: "📖", price: "3,100", time: "90" },
+              { id: 3, name: "Rudrabhishek", icon: "🔱", price: "7,500", time: "150" },
+              { id: 4, name: "Navgraha Puja", icon: "🪐", price: "4,200", time: "90" },
+              { id: 5, name: "Lakshmi Puja", icon: "💰", price: "2,500", time: "60" },
+              { id: 6, name: "Mundan", icon: "✂️", price: "3,800", time: "90" },
+              { id: 7, name: "Naamkaran", icon: "👶", price: "2,800", time: "60" },
+              { id: 8, name: "Shradh Puja", icon: "🪔", price: "4,500", time: "120" },
+              { id: 9, name: "Havan Ritual", icon: "🔥", price: "6,000", time: "180" },
+              { id: 10, name: "Marriage Puja", icon: "💍", price: "15,000", time: "240" }
+            ].map((service) => (
               <motion.div
-                key={cat.name}
-                whileHover={{ y: -10 }}
-                className="group cursor-pointer"
+                key={service.id}
+                whileHover={{ y: -8 }}
                 onClick={onFindPandit}
+                className="bg-white p-6 rounded-3xl sacred-shadow border border-outline-variant/30 hover:border-primary/30 transition-all group cursor-pointer"
               >
-                <div className={`${cat.color} p-10 rounded-[2.5rem] mb-6 flex items-center justify-center text-4xl shadow-sm border border-transparent group-hover:border-saffron/20 transition-all duration-500`}>
-                  {cat.icon}
+                <div className="w-12 h-12 bg-surface-container-low rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform">
+                  {service.icon}
                 </div>
-                <h4 className="text-center text-xs font-black uppercase tracking-widest text-text-dark/60 group-hover:text-saffron transition-colors">
-                  {cat.name}
-                </h4>
+                <h4 className="font-black text-on-surface text-sm mb-4 leading-tight">{service.name}</h4>
+                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40 pt-4 border-t border-outline-variant/10">
+                  <span className="text-primary">₹{service.price}</span>
+                  <span className="flex items-center gap-1 font-bold"><span className="material-symbols-outlined text-xs">schedule</span> {service.time}m</span>
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How it Works Timeline */}
-      <section className="py-32 bg-text-dark relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-12 relative z-10">
-          <div className="flex flex-col lg:flex-row items-end justify-between mb-24 gap-8">
-            <div>
-              <h3 className="text-5xl font-black text-white mb-6">How it Works</h3>
-              <p className="text-white/40 text-xl font-medium max-w-xl">Connecting you with divine wisdom in just three steps.</p>
-            </div>
+      {/* HOW IT WORKS */}
+      <section className="bg-on-surface py-24 text-white relative overflow-hidden">
+        <div className="absolute inset-0 mandala-bg opacity-[0.03] scale-150"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 relative z-10">
+          <div className="text-center space-y-4 mb-20">
+            <h2 className="text-4xl font-black italic tracking-tight">How It Works</h2>
+            <p className="text-white/40 font-bold text-sm max-w-lg mx-auto">Experiencing the divine is now simple and organized. Follow these three steps to perform your sacred ritual.</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16 relative">
-            <div className="absolute top-12 left-0 w-full h-px bg-white/5 hidden md:block"></div>
+          <div className="grid md:grid-cols-3 gap-16 relative">
             {[
-              { step: "01", title: "Select Service", desc: "Browse 50+ Vedic ceremonies tailored to your needs." },
-              { step: "02", title: "Pick Your Pandit", desc: "Choose from certified, verified local experts." },
-              { step: "03", title: "Ritual Performed", desc: "Your Pandit arrives with all necessary samagri." }
+              {
+                step: 1,
+                title: "Choose Your Ritual",
+                desc: "Select from 50+ Vedic ceremonies. Customize requirements like location, date, and preferred language."
+              },
+              {
+                step: 2,
+                title: "Pick a Verified Pandit",
+                desc: "Browse profiles with ratings, expertise, and verified documents. Transparent pricing for peace of mind."
+              },
+              {
+                step: 3,
+                title: "Seamless Experience",
+                desc: "The Pandit arrives at your doorstep on time. Arrives with full samagri kit included for a hassle-free puja."
+              }
             ].map((item) => (
-              <div key={item.step} className="relative group">
-                <div className="w-20 h-20 bg-saffron text-white rounded-[2rem] flex items-center justify-center text-2xl font-black mb-8 group-hover:scale-110 transition-transform duration-500 shadow-xl shadow-saffron/40">
+              <div key={item.step} className="space-y-8 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center text-2xl font-black shadow-xl shadow-primary/20 ring-8 ring-white/5">
                   {item.step}
                 </div>
-                <h4 className="text-2xl font-bold text-white mb-4">{item.title}</h4>
-                <p className="text-white/40 text-lg leading-relaxed">{item.desc}</p>
+                <div className="bg-white/5 backdrop-blur-sm p-10 rounded-[2.5rem] border border-white/10 w-full h-full">
+                  <h3 className="text-xl font-black mb-4 tracking-tight">{item.title}</h3>
+                  <p className="text-white/40 font-bold text-xs leading-loose">{item.desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Trust Stats Bar */}
-      <section className="bg-white py-16">
-        <div className="max-w-7xl mx-auto px-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
-            <div>
-              <div className="text-4xl font-black text-text-dark mb-2">5000+</div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-text-dark/40">Verified Pandits</div>
-            </div>
-            <div>
-              <div className="text-4xl font-black text-text-dark mb-2">12k+</div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-text-dark/40">Pujas Completed</div>
-            </div>
-            <div>
-              <div className="text-4xl font-black text-text-dark mb-2">4.9/5</div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-text-dark/40">Average Rating</div>
-            </div>
-            <div>
-              <div className="text-4xl font-black text-text-dark mb-2">50+</div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-text-dark/40">Sacred Services</div>
-            </div>
+      {/* EXPERIENCE ANCIENT WISDOM */}
+      <section className="py-24 bg-surface-container-low/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+          <div className="text-center space-y-4 mb-20">
+            <h2 className="text-4xl font-black text-on-surface italic tracking-tight">Experience Ancient Wisdom</h2>
+            <p className="text-on-surface-variant/60 font-bold text-sm">Our most recommended Acharyas and Pandits with decades of ritualistic experience.</p>
           </div>
-        </div>
-      </section>
-
-      {/* Featured Services */}
-      <section className="max-w-7xl mx-auto px-4 py-24 relative z-10">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4">
-          <div>
-            <h3 className="text-4xl font-bold text-text-dark mb-3">Sacred Services</h3>
-            <p className="text-text-dark/50 text-lg">Curated ceremonies for every sacred milestone</p>
-          </div>
-          <button 
-            onClick={onFindPandit}
-            className="bg-gold/10 text-gold px-6 py-2 rounded-full font-bold text-sm border border-gold/10 hover:bg-gold hover:text-white transition-all"
-          >
-            Explore All Services
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          <AnimatePresence>
-            {services.length > 0 ? (
-              services.map((service, idx) => (
-                <motion.div
-                  key={service.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  whileHover={{ y: -10 }}
-                  className="group bg-white rounded-[32px] overflow-hidden shadow-xl shadow-saffron/5 border border-saffron/5 flex flex-col h-full"
-                >
-                  <div className="h-56 bg-slate-50 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-saffron/10 to-gold/10 group-hover:scale-110 transition-transform duration-500 flex items-center justify-center text-saffron/20">
-                      <Sparkles size={72} strokeWidth={1} />
-                    </div>
-                    <div className="absolute top-6 left-6 bg-white/90 backdrop-blur rounded-full px-4 py-1.5 text-[10px] font-black text-saffron uppercase tracking-[0.2em] shadow-sm">
-                      {service.category}
-                    </div>
+          <div className="grid md:grid-cols-3 gap-10">
+            {pandits.slice(0, 3).map((pandit) => (
+              <motion.div
+                key={pandit.id}
+                whileHover={{ y: -10 }}
+                className="bg-white rounded-[2.5rem] overflow-hidden sacred-shadow border border-outline-variant/30 group transition-all"
+              >
+                <div className="relative h-72 overflow-hidden">
+                  <img
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    src={pandit.photoUrl || "https://images.unsplash.com/photo-1544005313-94ddf0286df2"}
+                    alt={pandit.name}
+                  />
+                  <div className="absolute top-6 right-6 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-primary font-black text-[10px] flex items-center gap-1 shadow-lg">
+                    <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>star</span> {pandit.rating}
                   </div>
-                  <div className="p-8 flex flex-col flex-grow">
-                    <h4 className="text-2xl font-bold mb-3 group-hover:text-saffron transition-colors">{service.name}</h4>
-                    <p className="text-sm text-text-dark/50 mb-8 leading-relaxed flex-grow">{service.description}</p>
-                    
-                    <div className="flex items-center justify-between mb-8 pb-6 border-b border-warm-white bg-slate-50/50 p-4 rounded-2xl">
-                      <div className="flex items-center gap-2 text-gold">
-                        <Clock size={16} />
-                        <span className="text-sm font-bold">{service.durationMins}m</span>
-                      </div>
-                      <div className="text-xl font-black text-text-dark">₹{service.basePrice}</div>
-                    </div>
-
-                    <button 
-                      onClick={() => onBook(service)}
-                      className="w-full bg-saffron text-white shadow-lg shadow-saffron/20 hover:shadow-xl hover:shadow-saffron/40 font-bold py-4 rounded-2xl transition-all"
-                    >
-                      Quick Book
-                    </button>
-                  </div>
-                </motion.div>
-              ))
-            ) : (
-              <div className="col-span-full py-20 text-center bg-slate-50 rounded-[2.5rem] border border-dashed border-slate-200">
-                <div className="text-4xl mb-4">🕉️</div>
-                <h4 className="text-xl font-bold text-text-dark/40 italic">Wait while we connect it to Database. Select other options above meanwhile</h4>
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
-      </section>
-
-      {/* Pandit Highlight */}
-      <section className="bg-white py-32 relative overflow-hidden">
-        <div className="absolute -left-20 top-0 w-64 h-64 bg-gold/5 rounded-full blur-3xl"></div>
-        <div className="max-w-7xl mx-auto px-4 relative z-10">
-          <div className="text-center mb-20">
-            <h3 className="text-4xl md:text-5xl font-bold mb-6">Experience Ancient Wisdom</h3>
-            <p className="text-text-dark/50 max-w-2xl mx-auto text-lg leading-relaxed">Meet our verified exponents who bring millennia of authentic Vedic knowledge to your sacred ceremonies.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {pandits.length > 0 ? (
-              pandits.map((pandit) => (
-                <div key={pandit.id} className="relative group">
-                  <div className="absolute inset-0 bg-gold/5 rounded-[40px] translate-x-4 translate-y-4 group-hover:translate-x-2 group-hover:translate-y-2 transition-transform"></div>
-                  <div className="relative bg-white p-10 rounded-[40px] shadow-xl border border-gold/10 text-center transition-all">
-                    <div className="w-28 h-28 bg-warm-white rounded-full mx-auto mb-8 flex items-center justify-center text-gold border-4 border-gold/5 shadow-inner overflow-hidden text-4xl">
-                      {pandit.photoUrl ? (
-                        <img src={pandit.photoUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        "🧘‍♂️"
-                      )}
-                    </div>
-                    <div className="flex items-center justify-center gap-1.5 text-gold mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={18} fill={i < Math.floor(parseFloat(pandit.rating || "0")) ? "currentColor" : "none"} />
-                      ))}
-                      <span className="text-sm font-black ml-2 bg-gold/10 px-2 py-0.5 rounded text-gold">{pandit.rating}</span>
-                    </div>
-                    <h4 className="text-2xl font-bold mb-2">{pandit.name}</h4>
-                    <p className="text-saffron text-xs font-black uppercase tracking-[0.2em] mb-6">{pandit.experience}+ Years of Sadhana</p>
-                    <p className="text-sm text-text-dark/60 mb-8 italic leading-relaxed">"{pandit.bio || 'Preserving the purity of Vedic traditions for your family\'s spiritual well-being.'}"</p>
-                    <div className="flex items-center justify-center gap-3 py-3 px-6 bg-green-50 text-green-700 rounded-full text-xs font-bold w-fit mx-auto cursor-pointer" onClick={onFindPandit}>
-                      <CheckCircle size={16} />
-                      <span>KYC & Aadhaar Verified</span>
-                    </div>
+                  <div className="absolute bottom-6 left-6 flex gap-2">
+                    <span className="bg-primary text-white text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">Verified Path</span>
+                    <span className="bg-on-surface text-white text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">{pandit.experience} Yrs Exp</span>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full py-16 text-center bg-gold/5 rounded-[2.5rem] border border-dashed border-gold/20">
-                <p className="text-gold font-bold italic">Loading verified masters...</p>
-              </div>
-            )}
+                <div className="p-10 space-y-6 text-center">
+                  <div>
+                    <h3 className="text-xl font-black text-on-surface">{pandit.name}</h3>
+                    <p className="text-primary font-black uppercase tracking-widest text-[9px] mt-2 italic">{pandit.specialization || 'Ritual Master'}</p>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 text-green-700 font-black text-[10px] uppercase tracking-widest bg-green-50/50 py-3 rounded-2xl border border-green-100">
+                    <span className="material-symbols-outlined text-sm">verified_user</span> 100% Verified
+                  </div>
+                  <button
+                    onClick={onFindPandit}
+                    className="w-full bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px] py-5 rounded-2xl hover:bg-primary hover:text-white transition-all shadow-md group-hover:shadow-primary/20"
+                  >
+                    View Sanctuary Profile
+                  </button>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
-    </>
+
+      <section className="bg-linear-to-r from-on-surface to-inverse-surface py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 grid md:grid-cols-3 gap-16 text-center text-white">
+          <div className="space-y-4">
+            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto ring-4 ring-white/5">
+              <span className="material-symbols-outlined text-3xl text-primary">verified_user</span>
+            </div>
+            <h3 className="text-lg font-black tracking-tight">Verified Identity</h3>
+            <p className="text-white/40 font-bold text-xs leading-loose">Every Acharya undergoes strict 4-level KYC and Vedic qualification screening.</p>
+          </div>
+          <div className="space-y-4">
+            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto ring-4 ring-white/5">
+              <span className="material-symbols-outlined text-3xl text-primary">inventory_2</span>
+            </div>
+            <h3 className="text-lg font-black tracking-tight">Samagri Included</h3>
+            <p className="text-white/40 font-bold text-xs leading-loose">We handle all ritual materials. High-quality, pure organic samagri is part of the package.</p>
+          </div>
+          <div className="space-y-4">
+            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto ring-4 ring-white/5">
+              <span className="material-symbols-outlined text-3xl text-primary">payments</span>
+            </div>
+            <h3 className="text-lg font-black tracking-tight">Transparent Pricing</h3>
+            <p className="text-white/40 font-bold text-xs leading-loose">No hidden costs or extra charges on site. Fixed dakshina and service fees always.</p>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
