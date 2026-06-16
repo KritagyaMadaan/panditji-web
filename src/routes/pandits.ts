@@ -118,6 +118,8 @@ export default async function panditRoutes(fastify: FastifyInstance) {
         bio: panditProfiles.bio,
         experience: panditProfiles.experience,
         rating: panditProfiles.ratingAvg,
+        specializations: panditProfiles.specializations,
+        languages: panditProfiles.languages,
       })
       .from(users)
       .innerJoin(panditProfiles, eq(users.id, panditProfiles.userId))
