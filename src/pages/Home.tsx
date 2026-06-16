@@ -2,6 +2,35 @@ import React, { useState, useRef } from "react";
 import { motion } from "motion/react";
 import { Link, useNavigate } from "react-router-dom";
 import { Service, Pandit } from "../types.ts";
+const fallbackPandits = [
+  {
+    id: 101,
+    name: "Pt. Rajesh Kumar Sharma",
+    photoUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuCzxZor6gcNjiqb9QVbmKt8ZY3Q1J7mZuXCFq-9WuVFrzTrMAMb1KFcBsg7VsIk5nCQ4zicUz6OgC4Fq327OpQHQ0qn0ffZTRC1kJNxOKa-YMhCMwgpnNKHK9IGAajG1mW4nT7kpXVQ7Z2suSBZCt2H6dtL6AI3cVcTE4DjXDonpFDPS2rzvjckcSqbVIFcsdnhwovGMyWRx5bcAfMrl9_RGmkesaknfX60sVeefXHfk4RX6QDpZPnhW19MdSFJbwUVxL8tahqbGYc",
+    rating: 4.9,
+    experience: 22,
+    specialization: "Griha Pravesh Specialist",
+    price: 5100,
+  },
+  {
+    id: 102,
+    name: "Acharya Vinod Tiwari",
+    photoUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuCcTY9uHJerBsfYUiZ9zDZLJabt1ceXjNykv19DS34xeExUNjSDzr8zI6_fkUQIx740x5gaTrdeHR7d7-zLesQ4i99EVkbmazwSZGT0_ug_aCg8mnkSRz2OurHPxG-B51Ba4l-uWU4te2sVwbpo7BgodnHtUrz9iF7lgFhRq5jJvwqllQBU4jl9ZpFSR5ZLYZUy9KPKfCPkRBft0ZYO9nOQHvSmJgdQ7NLOx93omnwFlXJzgGbgCoMs9v6xqF9S8iqC3iW15Mz7fBw",
+    rating: 4.8,
+    experience: 18,
+    specialization: "Satyanarayan Specialist",
+    price: 3100,
+  },
+  {
+    id: 103,
+    name: "Pt. Shyam Narayan Mishra",
+    photoUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBbgitUie3uy1S01HzEo8VeK_j7QZUf0Gb6bHnS2zqjOiALOX_Fh_1b89wNjc2tuGi8H0PHn4ZfMEqMyv306wh0Lv25iDBs83r5ncIHNo_XF8G2yllX9J9g3jAM-IUf5Y6KpgwY2xlEHS2u7iGHr2s_BwPxi0c4BwKOrzaPRf7Q6qD0BSP0S-oNDXfP1vCPrU_4AeDApe4_WkkeVy2fp1TIz6O0hOsOxQvuZYcPKbt6wEbN2SOafCoiBKTOe4adHyLmL49yIKAptrM",
+    rating: 4.9,
+    experience: 25,
+    specialization: "Marriage Puja Specialist",
+    price: 4200,
+  }
+];
 
 interface HomeProps {
   services: Service[];
@@ -331,43 +360,63 @@ export default function Home({ services, pandits, onBook, onFindPandit }: HomePr
             <p className="text-on-surface-variant/60 font-bold text-sm">Our most recommended Acharyas and Pandits with decades of ritualistic experience.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-10">
-            {pandits.slice(0, 3).map((pandit) => (
-              <motion.div
-                key={pandit.id}
-                whileHover={{ y: -10 }}
-                className="bg-white rounded-[2.5rem] overflow-hidden sacred-shadow border border-outline-variant/30 group transition-all"
-              >
-                <div className="relative h-72 overflow-hidden">
-                  <img
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    src={pandit.photoUrl || "https://images.unsplash.com/photo-1544005313-94ddf0286df2"}
-                    alt={pandit.name}
-                  />
-                  <div className="absolute top-6 right-6 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-primary font-black text-[10px] flex items-center gap-1 shadow-lg">
-                    <span className="material-symbols-outlined text-xs" style={{ fontVariationSettings: "'FILL' 1" }}>star</span> {pandit.rating}
+            {(() => {
+              const displayPandits = pandits && pandits.length > 0 
+                ? pandits.map((p, idx) => {
+                    const fallback = fallbackPandits[idx % fallbackPandits.length];
+                    return {
+                      id: p.id,
+                      name: p.name,
+                      photoUrl: p.photoUrl || fallback.photoUrl,
+                      rating: p.rating ? parseFloat(String(p.rating)) : fallback.rating,
+                      experience: p.experience || fallback.experience,
+                      specialization: (p as any).specialization || fallback.specialization,
+                      price: (p as any).price || fallback.price
+                    };
+                  }).slice(0, 3)
+                : fallbackPandits;
+
+              return displayPandits.map((pandit) => (
+                <motion.div
+                  key={pandit.id}
+                  whileHover={{ y: -8 }}
+                  className="bg-white rounded-[32px] overflow-hidden sacred-shadow border border-outline-variant/30 group transition-all"
+                >
+                  <div className="relative h-72 overflow-hidden">
+                    <img
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      src={pandit.photoUrl}
+                      alt={pandit.name}
+                    />
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-saffron font-bold text-xs flex items-center gap-1 shadow-md">
+                      <span className="material-symbols-outlined text-xs text-saffron" style={{ fontVariationSettings: "'FILL' 1" }}>star</span> {pandit.rating}
+                    </div>
+                    <div className="absolute bottom-4 left-4 flex gap-2">
+                      <span className="bg-saffron text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">SADHANA</span>
+                      <span className="bg-on-surface text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">{pandit.experience} YRS EXP</span>
+                    </div>
                   </div>
-                  <div className="absolute bottom-6 left-6 flex gap-2">
-                    <span className="bg-primary text-white text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">Verified Path</span>
-                    <span className="bg-on-surface text-white text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">{pandit.experience} Yrs Exp</span>
+                  <div className="p-6 space-y-4 text-left">
+                    <div>
+                      <h3 className="text-xl font-bold text-on-surface">{pandit.name}</h3>
+                      <p className="text-outline text-sm font-semibold mt-1">{pandit.specialization}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-green-700 font-semibold text-sm">
+                      <span className="material-symbols-outlined text-sm">verified_user</span> KYC &amp; Aadhaar Verified
+                    </div>
+                    <div className="pt-4 border-t border-outline-variant/30 flex justify-between items-center">
+                      <span className="text-on-surface font-bold text-lg">₹{pandit.price?.toLocaleString()}</span>
+                      <button 
+                        onClick={onFindPandit}
+                        className="bg-saffron/10 text-saffron font-bold px-4 py-2 rounded-lg hover:bg-saffron hover:text-white transition-colors cursor-pointer"
+                      >
+                        Book Now
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="p-10 space-y-6 text-center">
-                  <div>
-                    <h3 className="text-xl font-black text-on-surface">{pandit.name}</h3>
-                    <p className="text-primary font-black uppercase tracking-widest text-[9px] mt-2 italic">{pandit.specialization || 'Ritual Master'}</p>
-                  </div>
-                  <div className="flex items-center justify-center gap-2 text-green-700 font-black text-[10px] uppercase tracking-widest bg-green-50/50 py-3 rounded-2xl border border-green-100">
-                    <span className="material-symbols-outlined text-sm">verified_user</span> 100% Verified
-                  </div>
-                  <button
-                    onClick={onFindPandit}
-                    className="w-full bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px] py-5 rounded-2xl hover:bg-primary hover:text-white transition-all shadow-md group-hover:shadow-primary/20"
-                  >
-                    View Sanctuary Profile
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ));
+            })()}
           </div>
         </div>
       </section>
