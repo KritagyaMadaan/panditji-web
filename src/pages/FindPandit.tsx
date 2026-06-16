@@ -10,7 +10,8 @@ import {
   Calendar,
   Filter,
   ChevronDown,
-  Clock
+  Clock,
+  X
 } from "lucide-react";
 import { cn } from "../lib/utils.ts";
 
@@ -24,6 +25,7 @@ interface MockPandit {
   id: number;
   name: string;
   photo: string;
+  photoUrl?: string;
   rating: number;
   reviews: number;
   experience: number;
@@ -31,6 +33,7 @@ interface MockPandit {
   languages: string[];
   price: number;
   distance: string;
+  isFromDb?: boolean;
 }
 
 const mockPandits: MockPandit[] = [
@@ -132,13 +135,31 @@ const mockPandits: MockPandit[] = [
   }
 ];
 
+let isFirstLoadSincePageReload = true;
+
 export default function FindPandit() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  const initialCity = searchParams.get("location") || "";
-  const initialService = searchParams.get("ritual") || "";
-  const initialDate = searchParams.get("date") || "";
+  // Detect if this specific mount is a document reload
+  const checkReload = () => {
+    if (!isFirstLoadSincePageReload) return false;
+    isFirstLoadSincePageReload = false;
+    
+    try {
+      const navEntries = performance.getEntriesByType("navigation");
+      if (navEntries.length > 0) {
+        return (navEntries[0] as PerformanceNavigationTiming).type === "reload";
+      }
+    } catch (e) {}
+    return typeof window !== "undefined" && window.performance && window.performance.navigation && window.performance.navigation.type === 1;
+  };
+
+  const wasReloaded = checkReload();
+
+  const initialCity = wasReloaded ? "" : (searchParams.get("location") || "");
+  const initialService = wasReloaded ? "" : (searchParams.get("ritual") || "");
+  const initialDate = wasReloaded ? "" : (searchParams.get("date") || "");
 
   // Filter input state (what user picks in dropdowns)
   const [selectedCity, setSelectedCity] = useState(initialCity);
@@ -148,16 +169,61 @@ export default function FindPandit() {
   const [minRating, setMinRating] = useState("");
   const [sort, setSort] = useState("Relevance");
   const [isLoading, setIsLoading] = useState(true);
+  const [dbPandits, setDbPandits] = useState<MockPandit[]>([]);
   const dateRef = useRef<HTMLInputElement>(null);
 
+  // Fetch real registered pandits from backend
+  useEffect(() => {
+    fetch("/api/pandits")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        if (!Array.isArray(data)) return;
+        const mapped: MockPandit[] = data.map((p, i) => ({
+          id: p.id,
+          name: p.name,
+          photo: "🧘",
+          photoUrl: p.photoUrl || undefined,
+          rating: p.rating ? parseFloat(String(p.rating)) : 4.5,
+          reviews: 0,
+          experience: p.experience || 0,
+          specializations: Array.isArray(p.specializations) ? p.specializations : [],
+          languages: Array.isArray(p.languages) ? p.languages : [],
+          price: 2500 + i * 300,
+          distance: `${(2 + i * 1.3).toFixed(1)} km`,
+          isFromDb: true,
+        }));
+        setDbPandits(mapped);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Merge DB pandits (shown first) with local mock pandits
+  const allPandits = [
+    ...dbPandits,
+    ...mockPandits.filter(m => !dbPandits.some(d => d.id === m.id))
+  ];
+
   // Derived filtered results — now live again
-  const filteredPandits = mockPandits.filter(p => {
-    const matchesCity = !selectedCity || (selectedCity === "Delhi" ? p.id % 2 === 0 : p.id % 2 !== 0); // Mock logic for city
-    const matchesService = !selectedService || p.specializations.some(s => s.toLowerCase().includes(selectedService.toLowerCase()));
-    const matchesRating = !minRating || p.rating >= parseFloat(minRating.replace("+", ""));
-    const matchesLang = !selectedLang || p.languages.includes(selectedLang);
-    return matchesCity && matchesService && matchesRating && matchesLang;
-  });
+  const filteredPandits = allPandits
+    .filter(p => {
+      const matchesCity = !selectedCity || (selectedCity === "Delhi" ? p.id % 2 === 0 : p.id % 2 !== 0); // Mock logic for city
+      const matchesService = !selectedService || p.specializations.some(s => s.toLowerCase().includes(selectedService.toLowerCase()));
+      const matchesRating = !minRating || p.rating >= parseFloat(minRating.replace("+", ""));
+      const matchesLang = !selectedLang || p.languages.includes(selectedLang);
+      return matchesCity && matchesService && matchesRating && matchesLang;
+    })
+    .sort((a, b) => {
+      if (sort === "Rating") {
+        return b.rating - a.rating;
+      }
+      if (sort === "Price: Low to High") {
+        return a.price - b.price;
+      }
+      if (sort === "Price: High to Low") {
+        return b.price - a.price;
+      }
+      return 0; // Relevance
+    });
 
   // Sync state to URL params for persistence on reload
   useEffect(() => {
@@ -169,6 +235,16 @@ export default function FindPandit() {
     // Use replace: true to avoid cluttering history
     navigate({ search: params.toString() }, { replace: true });
   }, [selectedCity, selectedService, selectedDate, navigate]);
+
+  const hasActiveFilters = !!(selectedCity || selectedService || selectedDate || selectedLang || minRating);
+
+  const handleClearFilters = () => {
+    setSelectedCity("");
+    setSelectedService("");
+    setSelectedDate("");
+    setSelectedLang("");
+    setMinRating("");
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -249,6 +325,15 @@ export default function FindPandit() {
               {selectedDate ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "Select Date"}
             </div>
           </div>
+
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearFilters}
+              className="text-xs font-black uppercase tracking-widest text-red-600 hover:text-white hover:bg-red-600 transition-all flex items-center gap-1.5 cursor-pointer bg-red-50 hover:shadow-lg hover:shadow-red-600/10 px-4 py-2.5 rounded-full border border-red-200"
+            >
+              <X size={14} /> Clear Filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -305,8 +390,14 @@ export default function FindPandit() {
                 >
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-saffron/5 rounded-full flex items-center justify-center text-3xl border-2 border-saffron/10 shadow-inner overflow-hidden group-hover:scale-110 transition-transform">
-                        {pandit.photo}
+                      <div className="w-16 h-16 bg-saffron/5 rounded-full flex items-center justify-center text-3xl border-2 border-saffron/10 shadow-inner overflow-hidden group-hover:scale-110 transition-transform relative">
+                        {pandit.photoUrl
+                          ? <img src={pandit.photoUrl} alt={pandit.name} className="w-full h-full object-cover rounded-full" />
+                          : pandit.photo
+                        }
+                        {pandit.isFromDb && (
+                          <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white" title="Registered Pandit" />
+                        )}
                       </div>
                       <div>
                         <h3 className="text-xl font-bold text-text-dark mb-1">{pandit.name}</h3>
