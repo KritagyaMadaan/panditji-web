@@ -16,7 +16,6 @@ import {
   ArrowLeft,
   Briefcase,
   Globe,
-  Truck,
   Plus,
   Minus,
   UploadCloud,
@@ -48,6 +47,25 @@ interface OnboardingData {
   outstationTravel: boolean;
   aadhaarNumber: string;
 }
+
+const cities = [
+  "Delhi NCR",
+  "Noida",
+  "Gurugram",
+  "Ghaziabad",
+  "Varanasi",
+  "Haridwar",
+  "Mathura",
+  "Mumbai",
+  "Bengaluru",
+  "Jaipur",
+  "Hyderabad",
+  "Meerut",
+  "Pune",
+  "Kolkata",
+  "Chennai",
+  "Ahmedabad"
+];
 
 const EXPERTISE_OPTIONS = [
   "Griha Pravesh", "Vivah Sanskar", "Satyanarayan Puja", 
@@ -134,6 +152,13 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
       if (targetUid) {
         const { password, ...cleanData } = formData;
         await setDoc(doc(firestoreDb, "users", targetUid), {
+          ...cleanData,
+          role: "pandit",
+          onboardingCompleted: true,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        await setDoc(doc(firestoreDb, "pandits", targetUid), {
           ...cleanData,
           role: "pandit",
           onboardingCompleted: true,
@@ -351,11 +376,7 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
                         onChange={e => setFormData({...formData, city: e.target.value})}
                         className="w-full bg-surface-container-low border border-outline-variant/20 rounded-2xl py-4 pl-12 pr-4 font-bold focus:border-primary focus:outline-none appearance-none transition-all"
                       >
-                        <option>Varanasi</option>
-                        <option>Haridwar</option>
-                        <option>Delhi NCR</option>
-                        <option>Mumbai</option>
-                        <option>Mathura</option>
+                        {cities.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                   </div>
@@ -456,32 +477,6 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
                    <div className="flex justify-between text-[8px] font-black text-on-surface-variant/20 uppercase tracking-widest">
                       <span>5 KM</span>
                       <span>100 KM</span>
-                   </div>
-                </div>
-
-                <div className="space-y-4">
-                   <div className="flex items-center justify-between p-6 bg-white border border-outline-variant/20 rounded-3xl shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-secondary-container rounded-xl flex items-center justify-center text-on-secondary-container">
-                           <Truck size={20} />
-                        </div>
-                        <div>
-                           <h4 className="font-black text-sm">Outstation Divine Travels</h4>
-                           <p className="text-[10px] font-bold text-on-surface-variant/40">Open to travel between cities?</p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => setFormData({...formData, outstationTravel: !formData.outstationTravel})}
-                        className={cn(
-                          "w-12 h-7 rounded-full relative transition-all",
-                          formData.outstationTravel ? "bg-primary" : "bg-outline-variant/30"
-                        )}
-                      >
-                        <div className={cn(
-                          "absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md",
-                          formData.outstationTravel ? "left-6" : "left-1"
-                        )} />
-                      </button>
                    </div>
                 </div>
 
