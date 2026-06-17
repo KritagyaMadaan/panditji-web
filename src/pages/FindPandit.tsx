@@ -97,13 +97,13 @@ export default function FindPandit() {
   useEffect(() => {
     const fetchRegisteredPandits = async () => {
       try {
+
         const q = query(
           collection(firestoreDb, "pandits"),
           where("onboardingCompleted", "==", true)
         );
         const querySnapshot = await getDocs(q);
         const fetched: MockPandit[] = [];
-        let index = 0;
         querySnapshot.forEach((docSnap) => {
           const p = docSnap.data();
           fetched.push({
@@ -111,21 +111,20 @@ export default function FindPandit() {
             name: p.name || "Pandit",
             photo: "🧘",
             photoUrl: p.photoUrl || undefined,
-            rating: p.rating ? parseFloat(String(p.rating)) : 4.8,
-            reviews: p.reviews || Math.floor(Math.random() * 20) + 5,
-            experience: p.experience || 5,
+            rating: p.rating ? parseFloat(String(p.rating)) : 5.0,
+            reviews: p.reviews || 0,
+            experience: p.experience || 0,
             specializations: Array.isArray(p.expertise) && p.expertise.length > 0 
               ? p.expertise 
               : (p.specialization ? [p.specialization] : []),
             languages: Array.isArray(p.languages) && p.languages.length > 0 
               ? p.languages 
               : ["Hindi", "Sanskrit"],
-            price: p.basePrice ? Number(p.basePrice) : (2500 + index * 300),
-            distance: `${(2 + index * 1.3).toFixed(1)} km`,
+            price: p.basePrice ? Number(p.basePrice) : 2100,
+            distance: "",
             isFromDb: true,
             city: p.city || "",
           });
-          index++;
         });
         setDbPandits(fetched);
       } catch (error) {
@@ -356,10 +355,12 @@ export default function FindPandit() {
                   </div>
 
                   <div className="mb-6">
-                    <div className="inline-flex items-center bg-orange-50 text-saffron px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border border-saffron/10">
-                      <Clock size={12} className="mr-1.5" />
-                      {pandit.experience}+ Years of Sadhana
-                    </div>
+                    {pandit.experience > 0 && (
+                      <div className="inline-flex items-center bg-orange-50 text-saffron px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border border-saffron/10">
+                        <Clock size={12} className="mr-1.5" />
+                        {pandit.experience}+ Years of Sadhana
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2 mb-4">
                       {pandit.specializations.map(spec => (
                         <span key={spec} className="px-3 py-1 bg-slate-50 text-text-dark/60 text-[10px] font-bold rounded-full border border-slate-100 italic">
@@ -378,10 +379,12 @@ export default function FindPandit() {
                       <div className="text-[10px] font-black uppercase tracking-widest text-text-dark/40 mb-1">Starting Price</div>
                       <div className="text-2xl font-black text-text-dark">₹{pandit.price.toLocaleString()}</div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-text-dark/50 text-xs font-bold">
-                      <MapPin size={14} className="text-saffron" />
-                      {pandit.distance} away
-                    </div>
+                    {pandit.distance && (
+                      <div className="flex items-center gap-1.5 text-text-dark/50 text-xs font-bold">
+                        <MapPin size={14} className="text-saffron" />
+                        {pandit.distance}
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
