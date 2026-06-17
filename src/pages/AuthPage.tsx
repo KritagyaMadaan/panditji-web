@@ -12,7 +12,24 @@ import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { auth, googleAuthProvider, db as firestoreDb } from "../lib/firebase.ts";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 
-const cities = ["Varanasi", "Haridwar", "Mumbai", "Delhi", "Bengaluru", "Noida", "Jaipur"];
+const cities = [
+  "Delhi NCR",
+  "Noida",
+  "Gurugram",
+  "Ghaziabad",
+  "Varanasi",
+  "Haridwar",
+  "Mathura",
+  "Mumbai",
+  "Bengaluru",
+  "Jaipur",
+  "Hyderabad",
+  "Meerut",
+  "Pune",
+  "Kolkata",
+  "Chennai",
+  "Ahmedabad"
+];
 const specializations = ["Satyanarayan Puja", "Vivah Sanskar", "Griha Pravesh", "Mundan Sanskar", "Rudrabhishek", "Vastu Shanti"];
 
 export default function AuthPage() {
