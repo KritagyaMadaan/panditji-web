@@ -15,13 +15,16 @@ import {
   LogOut,
   User as UserIcon,
   PlayCircle,
-  ShieldCheck
+  ShieldCheck,
+  BookOpen,
+  IndianRupee,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "../lib/utils.ts";
 import { Link, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth, db } from "../lib/firebase.ts";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, setDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { X, Save, Edit2, CheckCircle2 } from "lucide-react";
 
 const EXPERTISE_OPTIONS = [
@@ -48,12 +51,59 @@ const initialSchedule: any[] = [];
 
 type BookingStatus = 'assigned' | 'en_route' | 'arrived' | 'started' | 'completed';
 
+const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
+  pending:     { label: "Pending",     cls: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  confirmed:   { label: "Confirmed",   cls: "bg-blue-100 text-blue-700 border-blue-200" },
+  in_progress: { label: "In Progress", cls: "bg-purple-100 text-purple-700 border-purple-200" },
+  completed:   { label: "Completed",   cls: "bg-green-100 text-green-700 border-green-200" },
+  cancelled:   { label: "Cancelled",   cls: "bg-red-100 text-red-600 border-red-200" },
+};
+
 export default function PanditDashboard({ user }: { user: any }) {
   const navigate = useNavigate();
   const [isAvailable, setIsAvailable] = useState(true);
   const [requests, setRequests] = useState<Request[]>(initialRequests);
   const [activeBookingStatus, setActiveBookingStatus] = useState<BookingStatus>('en_route');
   
+  // --- All Bookings Modal state ---
+  const [isBookingsOpen, setIsBookingsOpen] = useState(false);
+  const [allBookings, setAllBookings] = useState<any[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+
+  const fetchAllBookings = async () => {
+    const uid = auth.currentUser?.uid || user?.uid || user?.id;
+    if (!uid) return;
+    setBookingsLoading(true);
+    try {
+      const q = query(
+        collection(db, "bookings"),
+        where("panditId", "==", uid),
+        orderBy("createdAt", "desc")
+      );
+      const snap = await getDocs(q);
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllBookings(docs);
+    } catch (err) {
+      // Fallback: try without orderBy (index might not exist)
+      try {
+        const q2 = query(
+          collection(db, "bookings"),
+          where("panditId", "==", uid)
+        );
+        const snap2 = await getDocs(q2);
+        const docs2 = snap2.docs.map(d => ({ id: d.id, ...d.data() }));
+        setAllBookings(docs2);
+      } catch { setAllBookings([]); }
+    } finally {
+      setBookingsLoading(false);
+    }
+  };
+
+  const openBookingsModal = () => {
+    setIsBookingsOpen(true);
+    fetchAllBookings();
+  };
+
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -185,10 +235,13 @@ export default function PanditDashboard({ user }: { user: any }) {
                  <Calendar size={18} />
                  <span className="text-xs font-black uppercase tracking-widest">Today's Path</span>
               </button>
-              <button className="w-full flex items-center gap-4 py-3 px-6 text-on-surface-variant hover:bg-surface-container-highest/20 rounded-full transition-all">
-                 <Clock size={18} />
-                 <span className="text-xs font-black uppercase tracking-widest">All Bookings</span>
-              </button>
+               <button
+                  onClick={openBookingsModal}
+                  className="w-full flex items-center gap-4 py-3 px-6 text-on-surface-variant hover:bg-surface-container-highest/20 rounded-full transition-all text-left"
+               >
+                  <Clock size={18} />
+                  <span className="text-xs font-black uppercase tracking-widest">All Bookings</span>
+               </button>
               <button className="w-full flex items-center gap-4 py-3 px-6 text-on-surface-variant hover:bg-surface-container-highest/20 rounded-full transition-all">
                  <DollarSign size={18} />
                  <span className="text-xs font-black uppercase tracking-widest">Earnings</span>
@@ -685,6 +738,25 @@ export default function PanditDashboard({ user }: { user: any }) {
                         updatedAt: new Date()
                       });
 
+                      const panditRef = doc(db, "pandits", uid);
+                      await setDoc(panditRef, {
+                        uid,
+                        name: profileForm.name,
+                        phone: profileForm.phone,
+                        city: profileForm.city,
+                        experience: profileForm.experience,
+                        bio: profileForm.bio,
+                        expertise: profileForm.expertise,
+                        languages: profileForm.languages,
+                        basePrice: profileForm.basePrice,
+                        travelRadius: profileForm.travelRadius,
+                        outstationTravel: profileForm.outstationTravel,
+                        aadhaarNumber: profileForm.aadhaarNumber,
+                        role: "pandit",
+                        onboardingCompleted: true,
+                        updatedAt: new Date()
+                      }, { merge: true });
+
                       // Sync profile details to postgres database via backend
                       const token = await auth.currentUser?.getIdToken();
                       if (token) {
@@ -720,6 +792,140 @@ export default function PanditDashboard({ user }: { user: any }) {
                   className="px-6 py-3 bg-primary text-white hover:shadow-lg hover:shadow-primary/30 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isSavingProfile ? "Saving..." : "Save Details"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ===== All Bookings Modal ===== */}
+      <AnimatePresence>
+        {isBookingsOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-3xl rounded-4xl overflow-hidden shadow-2xl border border-outline-variant/20 my-8 flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="p-6 md:p-8 bg-gradient-to-br from-primary to-primary-container text-white flex justify-between items-center shrink-0">
+                <div>
+                  <h3 className="text-2xl md:text-3xl font-black font-decorative tracking-tight flex items-center gap-3">
+                    <BookOpen size={26} />
+                    All Bookings
+                  </h3>
+                  <p className="text-xs opacity-80 mt-1 uppercase tracking-widest font-bold">Your complete booking history</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={fetchAllBookings}
+                    disabled={bookingsLoading}
+                    className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center"
+                    title="Refresh"
+                  >
+                    <RefreshCw size={18} className={bookingsLoading ? "animate-spin" : ""} />
+                  </button>
+                  <button
+                    onClick={() => setIsBookingsOpen(false)}
+                    className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center hover:rotate-90"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 md:p-8 overflow-y-auto flex-1">
+                {bookingsLoading ? (
+                  <div className="flex flex-col items-center justify-center py-16 gap-4">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm font-bold text-on-surface-variant/50 uppercase tracking-widest">Loading Bookings...</p>
+                  </div>
+                ) : allBookings.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+                    <div className="text-5xl">📋</div>
+                    <h4 className="text-xl font-black text-on-surface">No Bookings Yet</h4>
+                    <p className="text-sm text-on-surface-variant/50 font-medium">Your accepted bookings will appear here once customers book you.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {allBookings.map((booking, idx) => {
+                      const statusInfo = STATUS_STYLES[booking.status] || STATUS_STYLES.pending;
+                      const bookedDate = booking.scheduledAt?.toDate
+                        ? booking.scheduledAt.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                        : booking.scheduledAt
+                          ? new Date(booking.scheduledAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                          : "—";
+                      const createdDate = booking.createdAt?.toDate
+                        ? booking.createdAt.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                        : "—";
+
+                      return (
+                        <motion.div
+                          key={booking.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.04 }}
+                          className="bg-surface-container-low rounded-3xl p-6 border border-outline-variant/20 hover:border-primary/20 transition-all group"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-black text-on-surface text-sm">
+                                  {booking.serviceName || booking.service || "Puja Service"}
+                                </h4>
+                                <span className={cn(
+                                  "px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                                  statusInfo.cls
+                                )}>
+                                  {statusInfo.label}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-on-surface-variant/60 font-semibold">
+                                {booking.customerName && (
+                                  <span className="flex items-center gap-1">
+                                    <UserIcon size={11} /> {booking.customerName}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1">
+                                  <Calendar size={11} /> Ceremony: {bookedDate}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock size={11} /> Booked on: {createdDate}
+                                </span>
+                                {booking.address && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin size={11} /> {booking.address}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {booking.totalAmount && (
+                              <div className="flex items-center gap-1 text-primary font-black text-lg shrink-0">
+                                <IndianRupee size={16} />
+                                {parseFloat(booking.totalAmount).toLocaleString("en-IN")}
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-5 bg-surface-container-low border-t border-outline-variant/20 flex justify-between items-center shrink-0">
+                <p className="text-[11px] text-on-surface-variant/40 font-bold uppercase tracking-widest">
+                  {allBookings.length} booking{allBookings.length !== 1 ? "s" : ""} total
+                </p>
+                <button
+                  onClick={() => setIsBookingsOpen(false)}
+                  className="px-6 py-2.5 border border-outline-variant/40 rounded-xl font-black text-xs uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-highest/20 transition-all"
+                >
+                  Close
                 </button>
               </div>
             </motion.div>
