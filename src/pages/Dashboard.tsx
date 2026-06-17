@@ -123,8 +123,8 @@ export default function Dashboard({ user, bookings, onUserUpdate }: DashboardPro
             <span className="absolute top-2 right-2 w-2 h-2 bg-primary-container rounded-full border border-white"></span>
           </button>
           <div className="w-10 h-10 rounded-full border-2 border-outline-variant overflow-hidden cursor-pointer hover:border-primary transition-colors" onClick={() => setIsEditOpen(true)}>
-             {auth.currentUser?.photoURL ? (
-               <img src={auth.currentUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
+             {user?.photoUrl || auth.currentUser?.photoURL ? (
+               <img src={user?.photoUrl || auth.currentUser?.photoURL || undefined} alt="Profile" className="w-full h-full object-cover" />
              ) : (
                <div className="w-full h-full bg-primary-container flex items-center justify-center text-white font-bold select-none">
                  {userName.charAt(0)}
@@ -140,8 +140,8 @@ export default function Dashboard({ user, bookings, onUserUpdate }: DashboardPro
           <div className="px-6 pb-8 flex flex-col items-center">
             <div className="relative group cursor-pointer" onClick={() => setIsEditOpen(true)}>
               <div className="w-20 h-20 rounded-full border-4 border-white shadow-lg overflow-hidden group-hover:border-primary/20 transition-all">
-                {auth.currentUser?.photoURL ? (
-                  <img src={auth.currentUser.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                {user?.photoUrl || auth.currentUser?.photoURL ? (
+                  <img src={user?.photoUrl || auth.currentUser?.photoURL || undefined} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-primary-container flex items-center justify-center text-3xl text-white font-bold">
                     {userName.charAt(0)}
