@@ -15,7 +15,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
       bio, 
       expertise, 
       languages: langs, 
-      aadhaarNumber 
+      aadhaarNumber,
+      photoUrl
     } = request.body || {};
     
     // Always update if explicit values were provided (signup form data is authoritative)
@@ -23,6 +24,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     if (name) userUpdates.name = name;
     if (phone) userUpdates.phone = phone;
     if (role) userUpdates.role = role;
+    if (photoUrl !== undefined) userUpdates.photoUrl = photoUrl;
 
     if (Object.keys(userUpdates).length > 0) {
       const result = await db.update(users)
