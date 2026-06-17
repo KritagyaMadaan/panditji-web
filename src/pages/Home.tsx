@@ -154,13 +154,13 @@ export default function Home({ services, pandits, onBook, onFindPandit }: HomePr
                   </select>
                 </div>
               </div>
-              <div 
+              <div
                 onClick={() => { dateRef.current?.showPicker(); }}
                 className="flex-1 min-w-[180px] p-4 flex items-center gap-3 hover:bg-surface-container-low transition-colors rounded-2xl cursor-pointer relative overflow-hidden"
               >
-                <input 
+                <input
                   ref={dateRef}
-                  type="date" 
+                  type="date"
                   min={today}
                   value={searchDate}
                   onChange={(e) => setSearchDate(e.target.value)}
@@ -361,19 +361,19 @@ export default function Home({ services, pandits, onBook, onFindPandit }: HomePr
           </div>
           <div className="grid md:grid-cols-3 gap-10">
             {(() => {
-              const displayPandits = pandits && pandits.length > 0 
+              const displayPandits = pandits && pandits.length > 0
                 ? pandits.map((p, idx) => {
-                    const fallback = fallbackPandits[idx % fallbackPandits.length];
-                    return {
-                      id: p.id,
-                      name: p.name,
-                      photoUrl: p.photoUrl || fallback.photoUrl,
-                      rating: p.rating ? parseFloat(String(p.rating)) : fallback.rating,
-                      experience: p.experience || fallback.experience,
-                      specialization: (p as any).specialization || fallback.specialization,
-                      price: (p as any).price || fallback.price
-                    };
-                  }).slice(0, 3)
+                  const fallback = fallbackPandits[idx % fallbackPandits.length];
+                  return {
+                    id: p.id,
+                    name: p.name,
+                    photoUrl: p.photoUrl || fallback.photoUrl,
+                    rating: p.rating ? parseFloat(String(p.rating)) : fallback.rating,
+                    experience: p.experience || fallback.experience,
+                    specialization: (p as any).specialization || fallback.specialization,
+                    price: (p as any).price || fallback.price
+                  };
+                }).slice(0, 3)
                 : fallbackPandits;
 
               return displayPandits.map((pandit) => (
@@ -406,7 +406,7 @@ export default function Home({ services, pandits, onBook, onFindPandit }: HomePr
                     </div>
                     <div className="pt-4 border-t border-outline-variant/30 flex justify-between items-center">
                       <span className="text-on-surface font-bold text-lg">₹{pandit.price?.toLocaleString()}</span>
-                      <button 
+                      <button
                         onClick={onFindPandit}
                         className="bg-saffron/10 text-saffron font-bold px-4 py-2 rounded-lg hover:bg-saffron hover:text-white transition-colors cursor-pointer"
                       >
