@@ -18,6 +18,8 @@ import {
   ChevronLeft
 } from "lucide-react";
 import { cn } from "../lib/utils.ts";
+import { doc, getDoc } from "firebase/firestore";
+import { db as firestoreDb } from "../lib/firebase.ts";
 
 // Mock data generator for the profile
 const getPanditData = (id: string) => ({
@@ -69,13 +71,62 @@ const timeSlots = ["09:00 AM", "11:30 AM", "02:00 PM", "04:30 PM"];
 
 export default function PanditProfile() {
   const { id } = useParams<{ id: string }>();
-  const [pandit, setPandit] = useState(getPanditData(id || "1"));
+  const [pandit, setPandit] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<number | null>(14); // Mock date
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<string>("");
 
   useEffect(() => {
     window.scrollTo(0, 0);
+
+    const fetchProfile = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const docRef = doc(firestoreDb, "pandits", id);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const p = snap.data();
+          setPandit({
+            id: snap.id,
+            name: p.name || "Pandit Ji",
+            photo: "🧘",
+            photoUrl: p.photoUrl || undefined,
+            city: p.city || "India",
+            rating: p.rating ? parseFloat(String(p.rating)) : 5.0,
+            reviewsCount: p.reviewsCount || 0,
+            experience: p.experience || 0,
+            specializations: Array.isArray(p.expertise) && p.expertise.length > 0 
+              ? p.expertise 
+              : (p.specialization ? [p.specialization] : []),
+            languages: Array.isArray(p.languages) && p.languages.length > 0 
+              ? p.languages 
+              : ["Hindi", "Sanskrit"],
+            bio: p.bio || "Vedic scholar and ritual specialist.",
+            stats: {
+              totalBookings: p.totalBookings || "0",
+              avgRating: p.rating ? String(p.rating) : "5.0",
+              expYears: `${p.experience || 0}+`,
+              responseTime: "< 30 mins"
+            },
+            services: Array.isArray(p.services) && p.services.length > 0
+              ? p.services
+              : [
+                  { id: 1, name: "Griha Pravesh Puja", duration: "3 hrs", price: p.basePrice ? Number(p.basePrice) : 3100 },
+                  { id: 2, name: "Satyanarayan Katha", duration: "2 hrs", price: p.basePrice ? Math.round(Number(p.basePrice) * 0.6) : 2100 }
+                ],
+            reviews: p.reviews || []
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching profile from Firestore:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
   }, [id]);
 
   const ratingDist = [
@@ -87,6 +138,32 @@ export default function PanditProfile() {
   ];
 
   const days = Array.from({ length: 30 }, (_, i) => i + 1);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <motion.div
+           animate={{ rotate: 360 }}
+           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+           className="w-12 h-12 border-4 border-saffron border-t-transparent rounded-full mb-4"
+        />
+        <div className="text-saffron font-black text-xs uppercase tracking-[0.2em] animate-pulse">Loading Profile...</div>
+      </div>
+    );
+  }
+
+  if (!pandit) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-center px-4">
+        <div className="text-6xl mb-6">🕉️</div>
+        <h3 className="text-2xl font-black text-text-dark mb-4">Profile Not Found</h3>
+        <p className="text-text-dark/40 italic mb-8 max-w-sm">This pandit's public profile is not initialized yet.</p>
+        <Link to="/find-pandit" className="px-8 py-4 bg-saffron text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-saffron/20 hover:bg-text-dark transition-colors">
+          Back to Search
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/30 pb-20">
@@ -110,9 +187,12 @@ export default function PanditProfile() {
           <div className="bg-white rounded-[3rem] shadow-2xl shadow-saffron/5 border border-saffron/5 p-8 md:p-12 mb-12">
             <div className="flex flex-col md:flex-row gap-10 items-start">
               <div className="relative">
-                <div className="w-32 h-32 md:w-40 md:h-40 bg-white rounded-full p-2 shadow-2xl border-4 border-white mb-2 overflow-hidden flex items-center justify-center text-6xl shadow-saffron/10">
-                   <div className="w-full h-full bg-saffron/10 rounded-full flex items-center justify-center">
-                     {pandit.photo}
+                <div className="w-32 h-32 md:w-40 md:h-40 bg-white rounded-full p-2 shadow-2xl border-4 border-white mb-2 overflow-hidden flex items-center justify-center text-6xl shadow-saffron/10 relative">
+                   <div className="w-full h-full bg-saffron/10 rounded-full flex items-center justify-center overflow-hidden">
+                     {pandit.photoUrl 
+                       ? <img src={pandit.photoUrl} alt={pandit.name} className="w-full h-full object-cover rounded-full" />
+                       : pandit.photo
+                     }
                    </div>
                 </div>
                 <div className="absolute -bottom-2 -right-2 bg-green-500 text-white p-2 rounded-full shadow-lg border-4 border-white">
@@ -144,10 +224,12 @@ export default function PanditProfile() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <div className="inline-flex items-center bg-orange-50 text-saffron px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest border border-saffron/10 shadow-sm">
-                    <Award size={14} className="mr-2" />
-                    {pandit.experience}+ Years of Sadhana
-                  </div>
+                  {pandit.experience > 0 && (
+                    <div className="inline-flex items-center bg-orange-50 text-saffron px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest border border-saffron/10 shadow-sm">
+                      <Award size={14} className="mr-2" />
+                      {pandit.experience}+ Years of Sadhana
+                    </div>
+                  )}
                   {pandit.specializations.map(spec => (
                     <span key={spec} className="px-4 py-2 bg-slate-50 text-text-dark/60 text-[11px] font-black uppercase tracking-widest rounded-full border border-slate-100">
                       {spec}
