@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Only authenticated users can upload to their own folder
+    match /users/{userId}/images/{fileName} {
+      // Anyone can read (profile images are public)
+      allow read: if true;
+
+      // Only the authenticated owner can create/update
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId
+                            && request.resource != null
+                            && request.resource.size < 5 * 1024 * 1024
+                            && request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
+
+      // Only the authenticated owner can delete
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+    }
+
+    // Default deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
