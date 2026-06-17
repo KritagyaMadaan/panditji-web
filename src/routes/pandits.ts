@@ -2,7 +2,6 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db, users, panditProfiles, services } from '../db/index.ts';
 import { eq, and, sql, desc, asc } from 'drizzle-orm';
-import { getFirestore } from 'firebase-admin/firestore';
 
 const searchSchema = z.object({
   lat: z.string().transform(Number),
@@ -127,39 +126,5 @@ export default async function panditRoutes(fastify: FastifyInstance) {
       .innerJoin(panditProfiles, eq(users.id, panditProfiles.userId))
       .where(eq(users.role, 'pandit'))
       .limit(50); // increased limit to show all registered pandits
-    return results; // Return array directly for UI compatibility
-  });
-
-  // Admin/Helper Migration Endpoint to sync Firestore users -> pandits
-  fastify.get('/pandits/migrate', async (request, reply) => {
-    try {
-      const fsDb = getFirestore();
-      const usersRef = fsDb.collection('users');
-      const snapshot = await usersRef.where('role', '==', 'pandit').get();
-      
-      let migratedCount = 0;
-      const promises: any[] = [];
-      
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.onboardingCompleted) {
-          const panditRef = fsDb.collection('pandits').doc(docSnap.id);
-          // Omit fields like password
-          const { password, ...cleanData } = data;
-          promises.push(panditRef.set({
-            ...cleanData,
-            uid: docSnap.id,
-            updatedAt: new Date()
-          }, { merge: true }));
-          migratedCount++;
-        }
-      });
-      
-      await Promise.all(promises);
-      return { success: true, migratedCount };
-    } catch (err: any) {
-      console.error("Migration error:", err);
-      return reply.status(500).send({ success: false, error: err.message });
-    }
   });
 }
