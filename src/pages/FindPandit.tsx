@@ -14,15 +14,34 @@ import {
   X
 } from "lucide-react";
 import { cn } from "../lib/utils.ts";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db as firestoreDb } from "../lib/firebase.ts";
 
-const cities = ["Delhi", "Noida", "Ghaziabad", "Meerut", "Mumbai", "Bangalore", "Jaipur", "Hyderabad"];
+const cities = [
+  "Delhi NCR",
+  "Noida",
+  "Gurugram",
+  "Ghaziabad",
+  "Varanasi",
+  "Haridwar",
+  "Mathura",
+  "Mumbai",
+  "Bengaluru",
+  "Jaipur",
+  "Hyderabad",
+  "Meerut",
+  "Pune",
+  "Kolkata",
+  "Chennai",
+  "Ahmedabad"
+];
 const services = ["Griha Pravesh", "Satyanarayan", "Rudrabhishek", "Navgraha Puja", "Lakshmi Puja", "Mundan", "Naamkaran", "Shradh", "Havan", "Marriage Puja"];
 const languages = ["Hindi", "Sanskrit", "Tamil", "Telugu", "Kannada", "Bengali"];
 const ratings = ["3+", "4+", "4.5+"];
 const sortOptions = ["Relevance", "Rating", "Price: Low to High", "Price: High to Low"];
 
 interface MockPandit {
-  id: number;
+  id: any;
   name: string;
   photo: string;
   photoUrl?: string;
@@ -34,106 +53,8 @@ interface MockPandit {
   price: number;
   distance: string;
   isFromDb?: boolean;
+  city?: string;
 }
-
-const mockPandits: MockPandit[] = [
-  {
-    id: 1,
-    name: "Pandit Rajesh Shastri",
-    photo: "🧘‍♂️",
-    rating: 4.95,
-    reviews: 248,
-    experience: 18,
-    specializations: ["Griha Pravesh", "Havan", "Vastu"],
-    languages: ["Hindi", "Sanskrit"],
-    price: 3100,
-    distance: "2.3 km"
-  },
-  {
-    id: 2,
-    name: "Acharya Manoj Kumar",
-    photo: "📿",
-    rating: 4.80,
-    reviews: 124,
-    experience: 15,
-    specializations: ["Marriage", "Navgraha Puja"],
-    languages: ["Hindi", "Bengali"],
-    price: 5100,
-    distance: "4.1 km"
-  },
-  {
-    id: 3,
-    name: "Pandit Vishwanath Iyer",
-    photo: "📔",
-    rating: 4.90,
-    reviews: 186,
-    experience: 22,
-    specializations: ["Rudrabhishek", "Satyanarayan"],
-    languages: ["Tamil", "Sanskrit", "English"],
-    price: 4500,
-    distance: "1.8 km"
-  },
-  {
-    id: 4,
-    name: "Pandit Gajanand Mishra",
-    photo: "🐚",
-    rating: 4.75,
-    reviews: 92,
-    experience: 12,
-    specializations: ["Mundan", "Naamkaran"],
-    languages: ["Hindi", "Sanskrit"],
-    price: 2500,
-    distance: "3.5 km"
-  },
-  {
-    id: 5,
-    name: "Acharya Raghavan Swamy",
-    photo: "🕉️",
-    rating: 4.85,
-    reviews: 156,
-    experience: 20,
-    specializations: ["Lakshmi Puja", "Havan"],
-    languages: ["Telugu", "Kannada", "Hindi"],
-    price: 3500,
-    distance: "5.2 km"
-  },
-  {
-    id: 6,
-    name: "Pandit Suresh Pandey",
-    photo: "🪔",
-    rating: 4.70,
-    reviews: 84,
-    experience: 10,
-    specializations: ["Shradh", "Satyanarayan"],
-    languages: ["Hindi"],
-    price: 2100,
-    distance: "6.0 km"
-  },
-  {
-    id: 7,
-    name: "Pandit Anand Dubey",
-    photo: "🧘",
-    rating: 4.92,
-    reviews: 210,
-    experience: 16,
-    specializations: ["Griha Pravesh", "Marriage Puja"],
-    languages: ["Hindi", "Sanskrit"],
-    price: 7500,
-    distance: "1.2 km"
-  },
-  {
-    id: 8,
-    name: "Acharya Vinay Pathak",
-    photo: "✨",
-    rating: 4.65,
-    reviews: 67,
-    experience: 8,
-    specializations: ["Navgraha Puja", "Havan"],
-    languages: ["Hindi", "Marwadi"],
-    price: 2800,
-    distance: "8.4 km"
-  }
-];
 
 let isFirstLoadSincePageReload = true;
 
@@ -172,41 +93,61 @@ export default function FindPandit() {
   const [dbPandits, setDbPandits] = useState<MockPandit[]>([]);
   const dateRef = useRef<HTMLInputElement>(null);
 
-  // Fetch real registered pandits from backend
+  // Fetch real registered pandits directly from Firestore
   useEffect(() => {
-    fetch("/api/pandits")
-      .then(r => r.ok ? r.json() : [])
-      .then((data: any[]) => {
-        if (!Array.isArray(data)) return;
-        const mapped: MockPandit[] = data.map((p, i) => ({
-          id: p.id,
-          name: p.name,
-          photo: "🧘",
-          photoUrl: p.photoUrl || undefined,
-          rating: p.rating ? parseFloat(String(p.rating)) : 4.5,
-          reviews: 0,
-          experience: p.experience || 0,
-          specializations: Array.isArray(p.specializations) ? p.specializations : [],
-          languages: Array.isArray(p.languages) ? p.languages : [],
-          price: 2500 + i * 300,
-          distance: `${(2 + i * 1.3).toFixed(1)} km`,
-          isFromDb: true,
-        }));
-        setDbPandits(mapped);
-      })
-      .catch(() => {});
+    const fetchRegisteredPandits = async () => {
+      try {
+        const q = query(
+          collection(firestoreDb, "pandits"),
+          where("onboardingCompleted", "==", true)
+        );
+        const querySnapshot = await getDocs(q);
+        const fetched: MockPandit[] = [];
+        let index = 0;
+        querySnapshot.forEach((docSnap) => {
+          const p = docSnap.data();
+          fetched.push({
+            id: docSnap.id,
+            name: p.name || "Pandit",
+            photo: "🧘",
+            photoUrl: p.photoUrl || undefined,
+            rating: p.rating ? parseFloat(String(p.rating)) : 4.8,
+            reviews: p.reviews || Math.floor(Math.random() * 20) + 5,
+            experience: p.experience || 5,
+            specializations: Array.isArray(p.expertise) && p.expertise.length > 0 
+              ? p.expertise 
+              : (p.specialization ? [p.specialization] : []),
+            languages: Array.isArray(p.languages) && p.languages.length > 0 
+              ? p.languages 
+              : ["Hindi", "Sanskrit"],
+            price: p.basePrice ? Number(p.basePrice) : (2500 + index * 300),
+            distance: `${(2 + index * 1.3).toFixed(1)} km`,
+            isFromDb: true,
+            city: p.city || "",
+          });
+          index++;
+        });
+        setDbPandits(fetched);
+      } catch (error) {
+        console.error("Error fetching pandits from Firestore:", error);
+      }
+    };
+    fetchRegisteredPandits();
   }, []);
 
-  // Merge DB pandits (shown first) with local mock pandits
-  const allPandits = [
-    ...dbPandits,
-    ...mockPandits.filter(m => !dbPandits.some(d => d.id === m.id))
-  ];
+  // Only show real registered pandits
+  const allPandits = dbPandits;
 
   // Derived filtered results — now live again
   const filteredPandits = allPandits
     .filter(p => {
-      const matchesCity = !selectedCity || (selectedCity === "Delhi" ? p.id % 2 === 0 : p.id % 2 !== 0); // Mock logic for city
+      const matchesCity = !selectedCity || (
+        p.city && (
+          p.city.toLowerCase() === selectedCity.toLowerCase() ||
+          (selectedCity.toLowerCase() === "delhi ncr" && p.city.toLowerCase() === "delhi") ||
+          (selectedCity.toLowerCase() === "delhi" && p.city.toLowerCase() === "delhi ncr")
+        )
+      );
       const matchesService = !selectedService || p.specializations.some(s => s.toLowerCase().includes(selectedService.toLowerCase()));
       const matchesRating = !minRating || p.rating >= parseFloat(minRating.replace("+", ""));
       const matchesLang = !selectedLang || p.languages.includes(selectedLang);
