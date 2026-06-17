@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   MapPin, 
@@ -18,7 +18,11 @@ import {
   ShieldCheck,
   BookOpen,
   IndianRupee,
-  RefreshCw
+  RefreshCw,
+  Camera,
+  Loader2,
+  UploadCloud,
+  Trash2
 } from "lucide-react";
 import { cn } from "../lib/utils.ts";
 import { Link, useNavigate } from "react-router-dom";
@@ -26,6 +30,7 @@ import { signOut } from "firebase/auth";
 import { auth, db } from "../lib/firebase.ts";
 import { doc, updateDoc, setDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { X, Save, Edit2, CheckCircle2 } from "lucide-react";
+import { uploadAndUpdateProfile, validateImageFile, deleteImageFromStorage } from "../lib/imageUpload.ts";
 
 const EXPERTISE_OPTIONS = [
   "Griha Pravesh", "Vivah Sanskar", "Satyanarayan Puja", 
@@ -120,6 +125,81 @@ export default function PanditDashboard({ user }: { user: any }) {
     aadhaarNumber: ""
   });
 
+  // --- Image Upload State ---
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
+
+  // Sync photo URL from user prop
+  useEffect(() => {
+    if (user?.photoUrl) {
+      setCurrentPhotoUrl(user.photoUrl);
+    }
+  }, [user]);
+
+  const handleImageSelect = async (file: File) => {
+    setUploadError("");
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setUploadError(validationError);
+      return;
+    }
+
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => setPhotoPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+
+    const uid = auth.currentUser?.uid || user?.uid || user?.id;
+    if (!uid) {
+      setUploadError("Not authenticated. Please log in again.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    try {
+      const downloadUrl = await uploadAndUpdateProfile(
+        file,
+        uid,
+        currentPhotoUrl || undefined,
+        (percent) => setUploadProgress(percent)
+      );
+      setCurrentPhotoUrl(downloadUrl);
+      setPhotoPreview(null); // Clear preview, use actual URL
+      setUploadProgress(100);
+    } catch (err: any) {
+      console.error("Upload error details:", err);
+      setUploadError(err.message || "Upload failed");
+      setPhotoPreview(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    const uid = auth.currentUser?.uid || user?.uid || user?.id;
+    if (!uid || !currentPhotoUrl) return;
+    setIsUploading(true);
+    try {
+      await deleteImageFromStorage(currentPhotoUrl);
+      await updateDoc(doc(db, "users", uid), { photoUrl: null });
+      try {
+        await updateDoc(doc(db, "pandits", uid), { photoUrl: null });
+      } catch {}
+      setCurrentPhotoUrl(null);
+      setPhotoPreview(null);
+    } catch (err: any) {
+      console.error("Delete photo error details:", err);
+      setUploadError(err.message || "Failed to delete photo");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       setProfileForm({
@@ -184,9 +264,13 @@ export default function PanditDashboard({ user }: { user: any }) {
            </button>
            <div 
               onClick={() => setIsProfileOpen(true)}
-              className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-outline-variant cursor-pointer group hover:border-primary transition-all"
+              className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-outline-variant cursor-pointer group hover:border-primary transition-all overflow-hidden"
             >
-               <UserIcon size={20} className="group-hover:scale-110 transition-transform" />
+               {currentPhotoUrl ? (
+                 <img src={currentPhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+               ) : (
+                 <UserIcon size={20} className="group-hover:scale-110 transition-transform" />
+               )}
             </div>
         </div>
       </nav>
@@ -199,8 +283,10 @@ export default function PanditDashboard({ user }: { user: any }) {
                  onClick={() => setIsProfileOpen(true)}
                  className="flex items-center gap-4 mb-6 cursor-pointer group hover:opacity-85 transition-all"
                >
-                 <div className="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-white shadow-md group-hover:scale-105 transition-all">
-                    Pt
+                 <div className="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-white font-bold border-2 border-white shadow-md group-hover:scale-105 transition-all overflow-hidden">
+                    {currentPhotoUrl ? (
+                      <img src={currentPhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+                    ) : "Pt"}
                  </div>
                   <div>
                     <div className="flex items-center gap-1.5">
@@ -516,6 +602,95 @@ export default function PanditDashboard({ user }: { user: any }) {
 
               {/* Form Body */}
               <div className="p-6 md:p-8 overflow-y-auto space-y-6 text-sm text-on-surface">
+                {/* Profile Photo Upload */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-3 pb-1 border-b border-outline-variant/30">Profile Photo</h4>
+                  <div className="flex items-center gap-6">
+                    {/* Photo preview */}
+                    <div className="relative group">
+                      <div className="w-28 h-28 rounded-full bg-surface-container-low border-2 border-outline-variant/30 overflow-hidden flex items-center justify-center text-4xl shadow-lg">
+                        {isUploading ? (
+                          <div className="flex flex-col items-center justify-center w-full h-full bg-primary/5">
+                            <Loader2 size={28} className="text-primary animate-spin" />
+                            <span className="text-[9px] font-black text-primary mt-1">{uploadProgress}%</span>
+                          </div>
+                        ) : photoPreview ? (
+                          <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                        ) : currentPhotoUrl ? (
+                          <img src={currentPhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <span>🧘</span>
+                        )}
+                      </div>
+                      {/* Camera overlay */}
+                      {!isUploading && (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="absolute -bottom-1 -right-1 w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center shadow-lg border-3 border-white hover:scale-110 transition-transform cursor-pointer"
+                        >
+                          <Camera size={16} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-3">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageSelect(file);
+                          e.target.value = ""; // Reset so same file can be re-selected
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 text-primary rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/20 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <UploadCloud size={16} />
+                        {currentPhotoUrl ? "Change Photo" : "Upload Photo"}
+                      </button>
+
+                      {currentPhotoUrl && !isUploading && (
+                        <button
+                          type="button"
+                          onClick={handleDeletePhoto}
+                          className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <Trash2 size={14} />
+                          Remove Photo
+                        </button>
+                      )}
+
+                      {/* Progress bar */}
+                      {isUploading && (
+                        <div className="w-full">
+                          <div className="h-1.5 bg-surface-container-low rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${uploadProgress}%` }}
+                              className="h-full bg-primary rounded-full"
+                              transition={{ duration: 0.3 }}
+                            />
+                          </div>
+                          <p className="text-[10px] font-bold text-primary mt-1">Uploading... {uploadProgress}%</p>
+                        </div>
+                      )}
+
+                      {uploadError && (
+                        <p className="text-xs font-bold text-red-500">{uploadError}</p>
+                      )}
+
+                      <p className="text-[10px] text-on-surface-variant/40 font-medium">JPG, PNG or WEBP • Max 5MB</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Personal Information */}
                 <div>
                   <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-3 pb-1 border-b border-outline-variant/30">1. Personal Identity</h4>
@@ -757,28 +932,7 @@ export default function PanditDashboard({ user }: { user: any }) {
                         updatedAt: new Date()
                       }, { merge: true });
 
-                      // Sync profile details to postgres database via backend
-                      const token = await auth.currentUser?.getIdToken();
-                      if (token) {
-                        await fetch("/api/v1/auth/sync", {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${token}`
-                          },
-                          body: JSON.stringify({
-                            name: profileForm.name,
-                            phone: profileForm.phone,
-                            role: "pandit",
-                            city: profileForm.city,
-                            experience: profileForm.experience,
-                            bio: profileForm.bio,
-                            expertise: profileForm.expertise,
-                            languages: profileForm.languages,
-                            aadhaarNumber: profileForm.aadhaarNumber
-                          })
-                        });
-                      }
+
 
                       setIsProfileOpen(false);
                       window.location.reload(); // Refresh screen to sync stats/details
