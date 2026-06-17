@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   User as UserIcon, 
@@ -31,6 +31,7 @@ import {
 import { auth, db as firestoreDb } from "../lib/firebase.ts";
 import { useNavigate, Link } from "react-router-dom";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { uploadProfileImage, validateImageFile } from "../lib/imageUpload.ts";
 
 interface OnboardingData {
   name: string;
@@ -100,6 +101,54 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState("");
 
+  // --- Image Upload State ---
+  const onboardFileInputRef = useRef<HTMLInputElement>(null);
+  const [onboardUploadProgress, setOnboardUploadProgress] = useState(0);
+  const [onboardIsUploading, setOnboardIsUploading] = useState(false);
+  const [onboardUploadError, setOnboardUploadError] = useState("");
+  const [onboardPhotoPreview, setOnboardPhotoPreview] = useState<string | null>(null);
+  const [onboardPhotoUrl, setOnboardPhotoUrl] = useState<string | null>(null);
+
+  const handleOnboardImageSelect = async (file: File) => {
+    setOnboardUploadError("");
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setOnboardUploadError(validationError);
+      return;
+    }
+
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => setOnboardPhotoPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+
+    const uid = user?.uid || auth.currentUser?.uid;
+    if (!uid) {
+      setOnboardUploadError("Please complete account creation first.");
+      return;
+    }
+
+    setOnboardIsUploading(true);
+    setOnboardUploadProgress(0);
+    try {
+      const { downloadUrl } = await uploadProfileImage(
+        file,
+        uid,
+        onboardPhotoUrl || undefined,
+        (percent) => setOnboardUploadProgress(percent)
+      );
+      setOnboardPhotoUrl(downloadUrl);
+      setOnboardPhotoPreview(null);
+      setOnboardUploadProgress(100);
+    } catch (err: any) {
+      console.error("Onboarding upload error details:", err);
+      setOnboardUploadError(err.message || "Upload failed");
+      setOnboardPhotoPreview(null);
+    } finally {
+      setOnboardIsUploading(false);
+    }
+  };
+
   const nextStep = async () => {
     if (step === 1 && !user) {
       // Create Account First
@@ -155,6 +204,7 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
           ...cleanData,
           role: "pandit",
           onboardingCompleted: true,
+          ...(onboardPhotoUrl ? { photoUrl: onboardPhotoUrl } : {}),
           updatedAt: serverTimestamp()
         }, { merge: true });
 
@@ -162,31 +212,11 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
           ...cleanData,
           role: "pandit",
           onboardingCompleted: true,
+          ...(onboardPhotoUrl ? { photoUrl: onboardPhotoUrl } : {}),
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        // Sync onboarded details to postgres database via backend
-        const token = await auth.currentUser?.getIdToken();
-        if (token) {
-          await fetch("/api/v1/auth/sync", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              name: formData.name,
-              phone: formData.phone,
-              role: "pandit",
-              city: formData.city,
-              experience: formData.experience,
-              bio: formData.bio,
-              expertise: formData.expertise,
-              languages: formData.languages,
-              aadhaarNumber: formData.aadhaarNumber
-            })
-          });
-        }
+
       }
       
       setIsSuccess(true);
@@ -366,6 +396,77 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
+                {/* Profile Photo Upload Section */}
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40 ml-1">Profile Photo</label>
+                  <div className="flex items-center gap-6">
+                    <div className="relative">
+                      <div className="w-24 h-24 rounded-full bg-surface-container-low border-2 border-outline-variant/30 overflow-hidden flex items-center justify-center text-3xl shadow-lg">
+                        {onboardIsUploading ? (
+                          <div className="flex flex-col items-center justify-center w-full h-full bg-primary/5">
+                            <Loader2 size={24} className="text-primary animate-spin" />
+                            <span className="text-[8px] font-black text-primary mt-0.5">{onboardUploadProgress}%</span>
+                          </div>
+                        ) : onboardPhotoPreview ? (
+                          <img src={onboardPhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                        ) : onboardPhotoUrl ? (
+                          <img src={onboardPhotoUrl} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <span>🧘</span>
+                        )}
+                      </div>
+                      {!onboardIsUploading && (
+                        <button
+                          type="button"
+                          onClick={() => onboardFileInputRef.current?.click()}
+                          className="absolute -bottom-1 -right-1 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white hover:scale-110 transition-transform cursor-pointer"
+                        >
+                          <UploadCloud size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <input
+                        ref={onboardFileInputRef}
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleOnboardImageSelect(file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onboardFileInputRef.current?.click()}
+                        disabled={onboardIsUploading}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/20 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <UploadCloud size={14} />
+                        {onboardPhotoUrl ? "Change Photo" : "Upload Photo"}
+                      </button>
+                      {onboardIsUploading && (
+                        <div className="w-full">
+                          <div className="h-1.5 bg-surface-container-low rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${onboardUploadProgress}%` }}
+                              className="h-full bg-primary rounded-full"
+                              transition={{ duration: 0.3 }}
+                            />
+                          </div>
+                          <p className="text-[9px] font-bold text-primary mt-0.5">Uploading... {onboardUploadProgress}%</p>
+                        </div>
+                      )}
+                      {onboardUploadError && (
+                        <p className="text-xs font-bold text-red-500">{onboardUploadError}</p>
+                      )}
+                      <p className="text-[9px] text-on-surface-variant/40 font-medium">JPG, PNG or WEBP • Max 5MB</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40 ml-1">Primary Divine City</label>
