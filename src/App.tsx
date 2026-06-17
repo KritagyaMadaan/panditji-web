@@ -125,7 +125,18 @@ function AppContent() {
       const userRef = doc(firestoreDb, "users", u.uid);
       const snap = await getDoc(userRef);
       if (snap.exists()) {
-        setUser({ id: snap.id, ...snap.data() } as any);
+        const data = snap.data();
+        setUser({ id: snap.id, ...data } as any);
+        
+        // Auto-sync pandit profile to public pandits collection
+        if (data.role === "pandit" && data.onboardingCompleted) {
+          const { password, ...cleanData } = data;
+          await setDoc(doc(firestoreDb, "pandits", u.uid), {
+            ...cleanData,
+            uid: u.uid,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
       } else {
         // User not in Firestore yet — create a basic record
         await saveUserToFirestore(u);
@@ -155,16 +166,36 @@ function AppContent() {
 
   const fetchPandits = async () => {
     try {
-      const res = await fetch("/api/pandits");
-      if (!res.ok) {
-        if (res.status === 429) {
-          console.warn("Rate limit hit for pandits");
-          return;
-        }
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      const data = await res.json();
-      setPandits(Array.isArray(data) ? data : (data.data && Array.isArray(data.data) ? data.data : []));
+
+      const q = query(
+        collection(firestoreDb, "pandits"),
+        where("onboardingCompleted", "==", true)
+      );
+      const snap = await getDocs(q);
+      const fetched: Pandit[] = [];
+      let index = 0;
+      snap.docs.forEach((docSnap) => {
+        const p = docSnap.data();
+        fetched.push({
+          id: docSnap.id,
+          name: p.name || "Pandit",
+          photoUrl: p.photoUrl || undefined,
+          bio: p.bio || "",
+          experience: p.experience || 5,
+          rating: p.rating ? parseFloat(String(p.rating)) : 4.8,
+          specializations: Array.isArray(p.expertise) && p.expertise.length > 0 
+            ? p.expertise 
+            : (p.specialization ? [p.specialization] : []),
+          languages: Array.isArray(p.languages) && p.languages.length > 0 
+            ? p.languages 
+            : ["Hindi", "Sanskrit"],
+          price: p.basePrice ? Number(p.basePrice) : (2500 + index * 300),
+          isFromDb: true,
+          city: p.city || "",
+        } as any);
+        index++;
+      });
+      setPandits(fetched);
     } catch (err) {
       console.error("Fetch pandits error:", err);
       setPandits([]);
@@ -255,8 +286,12 @@ function AppContent() {
               {user ? (
                 <div className="flex items-center gap-4">
                   <Link to={user.role === "pandit" ? "/pandit/dashboard" : "/dashboard"} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <div className="w-8 h-8 rounded-full bg-saffron/10 flex items-center justify-center text-saffron">
-                      <UserIcon size={16} />
+                    <div className="w-8 h-8 rounded-full bg-saffron/10 flex items-center justify-center text-saffron overflow-hidden">
+                      {(user as any).photoUrl ? (
+                        <img src={(user as any).photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserIcon size={16} />
+                      )}
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-text-dark">{user.name}</span>
@@ -333,8 +368,12 @@ function AppContent() {
                        onClick={() => setIsMenuOpen(false)}
                        className="flex items-center gap-4 p-4 bg-white rounded-3xl shadow-sm border border-saffron/10"
                      >
-                      <div className="w-12 h-12 rounded-2xl bg-saffron/10 flex items-center justify-center text-saffron">
-                        <UserIcon size={24} />
+                      <div className="w-12 h-12 rounded-2xl bg-saffron/10 flex items-center justify-center text-saffron overflow-hidden">
+                        {(user as any).photoUrl ? (
+                          <img src={(user as any).photoUrl} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
+                        ) : (
+                          <UserIcon size={24} />
+                        )}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-lg font-bold text-text-dark">{user.name}</span>
