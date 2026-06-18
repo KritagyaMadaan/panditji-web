@@ -3,7 +3,7 @@ import { db } from "./firebase.ts";
 
 // --- Constants ---
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-const MAX_FILE_SIZE_KB = 800;
+const MAX_FILE_SIZE_KB = 800; 
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_KB * 1024;
 
 // --- Validation ---
@@ -12,9 +12,9 @@ export function validateImageFile(file: File): string | null {
     return `Invalid file type. Allowed: JPG, JPEG, PNG, WEBP`;
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return `File too large. Maximum size for Firestore image storage is ${MAX_FILE_SIZE_KB}KB`;
+    return `File size is more than maximum limit`;
   }
-  return null; // valid
+  return null;
 }
 
 // --- Convert file to Base64 data URL ---
