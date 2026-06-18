@@ -43,7 +43,7 @@ interface OnboardingData {
   expertise: string[];
   languages: string[];
   bio: string;
-  basePrice: number;
+  basePrice: number | "";
   travelRadius: number;
   outstationTravel: boolean;
   aadhaarNumber: string;
@@ -86,12 +86,12 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
     email: user?.email || "",
     phone: user?.phone || "",
     password: "",
-    city: user?.city || "Varanasi",
-    experience: 5,
+    city: user?.city || "",
+    experience: 0,
     expertise: [],
-    languages: ["Sanskrit", "Hindi"],
+    languages: [],
     bio: "",
-    basePrice: 2100,
+    basePrice: "",
     travelRadius: 25,
     outstationTravel: false,
     aadhaarNumber: ""
@@ -149,8 +149,72 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
     }
   };
 
+  // --- Aadhaar Document Upload State ---
+  const aadhaarFileInputRef = useRef<HTMLInputElement>(null);
+  const [aadhaarFileUrl, setAadhaarFileUrl] = useState<string | null>(null);
+  const [aadhaarFileName, setAadhaarFileName] = useState<string | null>(null);
+  const [aadhaarIsUploading, setAadhaarIsUploading] = useState(false);
+  const [aadhaarUploadError, setAadhaarUploadError] = useState("");
+  const [aadhaarUploadProgress, setAadhaarUploadProgress] = useState(0);
+
+  const handleAadhaarSelect = async (file: File) => {
+    setAadhaarUploadError("");
+    
+    // Validate type: pdf or image
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setAadhaarUploadError("Invalid file type. Allowed: PDF, JPG, JPEG, PNG, WEBP");
+      return;
+    }
+    
+    // Validate size (max 800KB)
+    if (file.size > 800 * 1024) {
+      setAadhaarUploadError("File size is more than maximum limit (800KB)");
+      return;
+    }
+
+    setAadhaarIsUploading(true);
+    setAadhaarUploadProgress(0);
+    try {
+      setAadhaarUploadProgress(30);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+      setAadhaarUploadProgress(70);
+      setAadhaarFileUrl(base64);
+      setAadhaarFileName(file.name);
+      setAadhaarUploadProgress(100);
+    } catch (err: any) {
+      setAadhaarUploadError(err.message || "Failed to read file");
+    } finally {
+      setAadhaarIsUploading(false);
+    }
+  };
+
   const nextStep = async () => {
+    setError("");
+    
     if (step === 1 && !user) {
+      if (!formData.name.trim()) {
+        setError("Please enter your full name.");
+        return;
+      }
+      if (!formData.email.trim()) {
+        setError("Please enter your email address.");
+        return;
+      }
+      if (!formData.phone.trim() || formData.phone.length !== 10) {
+        setError("Please enter a valid 10-digit mobile number.");
+        return;
+      }
+      if (!formData.password || formData.password.length < 6) {
+        setError("Password must be at least 6 characters long.");
+        return;
+      }
+
       // Create Account First
       setIsSubmitting(true);
       setError("");
@@ -179,6 +243,36 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
       }
       return;
     }
+
+    if (step === 2) {
+      if (!formData.city) {
+        setError("Please select your primary city.");
+        return;
+      }
+      if (formData.experience === 0) {
+        setError("Please enter your years of practice.");
+        return;
+      }
+    }
+
+    if (step === 3) {
+      if (formData.expertise.length === 0) {
+        setError("Please select at least one divine specialization.");
+        return;
+      }
+      if (formData.languages.length === 0) {
+        setError("Please select at least one language.");
+        return;
+      }
+    }
+
+    if (step === 4) {
+      if (formData.basePrice === "" || Number(formData.basePrice) <= 0) {
+        setError("Please enter a valid base dakshina (greater than 0).");
+        return;
+      }
+    }
+
     setStep(s => Math.min(s + 1, totalSteps));
   };
   
@@ -195,6 +289,16 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
   };
 
   const handleSubmit = async () => {
+    setError("");
+    if (!formData.aadhaarNumber || formData.aadhaarNumber.length !== 12) {
+      setError("Please enter a valid 12-digit Aadhaar card number.");
+      return;
+    }
+    if (!aadhaarFileUrl) {
+      setError("Please upload a copy of your Aadhaar card (PDF or Image).");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const targetUid = user?.uid || auth.currentUser?.uid;
@@ -205,6 +309,7 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
           role: "pandit",
           onboardingCompleted: true,
           ...(onboardPhotoUrl ? { photoUrl: onboardPhotoUrl } : {}),
+          aadhaarDocUrl: aadhaarFileUrl,
           updatedAt: serverTimestamp()
         }, { merge: true });
 
@@ -213,6 +318,7 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
           role: "pandit",
           onboardingCompleted: true,
           ...(onboardPhotoUrl ? { photoUrl: onboardPhotoUrl } : {}),
+          aadhaarDocUrl: aadhaarFileUrl,
           updatedAt: serverTimestamp()
         }, { merge: true });
 
@@ -378,7 +484,7 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
                   </div>
                 </div>
 
-                {error && <p className="text-red-500 text-[10px] font-black text-center uppercase tracking-widest bg-red-50 py-3 rounded-xl border border-red-100">{error}</p>}
+
 
                 <div className="text-center pt-2">
                   <Link to="/login" className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/60 hover:text-primary transition-colors underline decoration-dotted underline-offset-4">
@@ -462,7 +568,7 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
                       {onboardUploadError && (
                         <p className="text-xs font-bold text-red-500">{onboardUploadError}</p>
                       )}
-                      <p className="text-[9px] text-on-surface-variant/40 font-medium">JPG, PNG or WEBP • Max 5MB</p>
+                      <p className="text-[9px] text-on-surface-variant/40 font-medium">JPG, PNG or WEBP • Max 800KB</p>
                     </div>
                   </div>
                 </div>
@@ -477,6 +583,7 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
                         onChange={e => setFormData({...formData, city: e.target.value})}
                         className="w-full bg-surface-container-low border border-outline-variant/20 rounded-2xl py-4 pl-12 pr-4 font-bold focus:border-primary focus:outline-none appearance-none transition-all"
                       >
+                        <option value="" disabled>Select City</option>
                         {cities.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
@@ -588,7 +695,7 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
                       <input 
                         type="number"
                         value={formData.basePrice}
-                        onChange={e => setFormData({...formData, basePrice: parseInt(e.target.value)})}
+                        onChange={e => setFormData({...formData, basePrice: parseInt(e.target.value) || ""})}
                         className="w-full bg-surface-container-low border border-outline-variant/20 rounded-2xl py-4 pl-12 pr-4 font-bold focus:border-primary focus:outline-none transition-all"
                         placeholder="2100"
                       />
@@ -640,21 +747,90 @@ export default function PanditOnboarding({ user, onComplete }: { user: any, onCo
                     </div>
 
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40 ml-1">Aadhaar Document Copy</label>
-                       <div className="border-2 border-dashed border-outline-variant/30 rounded-3xl p-10 flex flex-col items-center gap-4 hover:bg-surface-container-low cursor-pointer transition-all hover:border-primary/40 group">
-                          <div className="w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                             <UploadCloud size={24} />
-                          </div>
-                          <div className="text-center">
-                             <p className="text-xs font-black text-on-surface">Upload Front & Back Combined</p>
-                             <p className="text-[10px] font-bold text-on-surface-variant/40 mt-1">PDF or Image (Max 5MB)</p>
-                          </div>
-                       </div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40 ml-1">Aadhaar Document Copy</label>
+                        
+                        <input 
+                          ref={aadhaarFileInputRef}
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleAadhaarSelect(file);
+                            e.target.value = "";
+                          }}
+                        />
+
+                        <div 
+                          onClick={() => !aadhaarIsUploading && aadhaarFileInputRef.current?.click()}
+                          className={cn(
+                            "border-2 border-dashed rounded-3xl p-8 flex flex-col items-center gap-4 transition-all relative overflow-hidden group select-none",
+                            aadhaarFileUrl 
+                              ? "bg-green-50/20 border-green-500/40 hover:bg-green-50/30" 
+                              : "bg-surface-container-low border-outline-variant/30 hover:bg-surface-container hover:border-primary/40 cursor-pointer"
+                          )}
+                        >
+                           {aadhaarIsUploading ? (
+                             <div className="flex flex-col items-center gap-2 py-4">
+                               <Loader2 size={32} className="text-primary animate-spin" />
+                               <p className="text-xs font-black text-primary">Uploading document... {aadhaarUploadProgress}%</p>
+                               <div className="w-48 h-1.5 bg-surface-container rounded-full overflow-hidden mt-1">
+                                 <div className="h-full bg-primary" style={{ width: `${aadhaarUploadProgress}%` }} />
+                               </div>
+                             </div>
+                           ) : aadhaarFileUrl ? (
+                             <div className="flex flex-col items-center gap-3 py-2 text-center w-full">
+                               {aadhaarFileUrl.startsWith("data:application/pdf") ? (
+                                 <FileText size={40} className="text-green-600 animate-bounce" />
+                               ) : (
+                                 <div className="w-20 h-20 rounded-2xl overflow-hidden border border-green-500/30 shadow-md">
+                                   <img src={aadhaarFileUrl} alt="Aadhaar Document" className="w-full h-full object-cover" />
+                                 </div>
+                               )}
+                               <div>
+                                 <p className="text-xs font-black text-green-700 flex items-center gap-1.5 justify-center">
+                                   <CheckCircle size={14} className="fill-green-100" />
+                                   Aadhaar File Attached
+                                 </p>
+                                 <p className="text-[10px] font-bold text-on-surface-variant/40 mt-1 truncate max-w-xs">{aadhaarFileName || "aadhaar_document"}</p>
+                               </div>
+                               <button
+                                 type="button"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   setAadhaarFileUrl(null);
+                                   setAadhaarFileName(null);
+                                 }}
+                                 className="mt-2 flex items-center gap-1 px-4 py-1.5 bg-red-50 text-red-500 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors border border-red-200/40"
+                               >
+                                 <X size={10} /> Delete Document
+                               </button>
+                             </div>
+                           ) : (
+                             <>
+                               <div className="w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                                  <UploadCloud size={24} />
+                               </div>
+                               <div className="text-center">
+                                  <p className="text-xs font-black text-on-surface">Upload Front & Back Combined</p>
+                                  <p className="text-[10px] font-bold text-on-surface-variant/40 mt-1">PDF or Image (Max 800KB)</p>
+                               </div>
+                             </>
+                           )}
+                        </div>
+                        {aadhaarUploadError && (
+                          <p className="text-xs font-bold text-red-500 text-center mt-2">{aadhaarUploadError}</p>
+                        )}
+                     </div>
                     </div>
-                 </div>
-              </motion.div>
+               </motion.div>
             )}
           </AnimatePresence>
+          {error && (
+            <p className="mt-6 text-red-500 text-[10px] font-black text-center uppercase tracking-widest bg-red-50 py-3 rounded-xl border border-red-100 animate-pulse">
+              {error}
+            </p>
+          )}
 
           <div className="mt-12 flex justify-between items-center sm:px-2">
             {step === 1 ? (
