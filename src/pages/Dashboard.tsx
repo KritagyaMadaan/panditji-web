@@ -30,6 +30,19 @@ import { db as firestoreDb } from "../lib/firebase.ts";
 import { auth } from "../lib/firebase.ts";
 import { updateProfile, signOut } from "firebase/auth";
 
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case "pending": return "Pending Approval";
+    case "confirmed": return "Confirmed";
+    case "en-route": return "Pandit En Route";
+    case "arrived": return "Pandit Arrived";
+    case "in-progress": return "Ceremony in Progress";
+    case "completed": return "Completed";
+    case "cancelled": return "Cancelled";
+    default: return status ? status.toUpperCase() : "PENDING";
+  }
+};
+
 interface DashboardProps {
   user: User | null;
   bookings: Booking[];
@@ -54,7 +67,7 @@ export default function Dashboard({ user, bookings, onUserUpdate }: DashboardPro
   const userCity = user?.city || "";
 
   const upcomingBookings = bookings.filter(b => 
-    ["pending", "confirmed", "in_progress"].includes(b.status)
+    ["pending", "confirmed", "en-route", "arrived", "in-progress", "in_progress"].includes(b.status)
   );
   
   const pastBookings = bookings.filter(b => 
@@ -63,11 +76,14 @@ export default function Dashboard({ user, bookings, onUserUpdate }: DashboardPro
 
   const getStatusStyles = (status: string) => {
     switch (status) {
-      case "confirmed": return "bg-green-100 text-green-700 border-green-200";
-      case "in_progress": return "bg-tertiary-container/10 text-tertiary border-tertiary/20";
-      case "completed": return "bg-green-100 text-green-700 border-transparent";
-      case "cancelled": return "bg-red-100 text-red-700 border-transparent";
-      default: return "bg-surface-container-highest text-on-surface-variant border-transparent";
+      case "confirmed": return "bg-green-50 text-green-700 border-green-200";
+      case "en-route": return "bg-blue-50 text-blue-700 border-blue-200";
+      case "arrived": return "bg-indigo-50 text-indigo-700 border-indigo-200";
+      case "in-progress":
+      case "in_progress": return "bg-amber-50 text-amber-700 border-amber-200";
+      case "completed": return "bg-green-50 text-green-700 border-transparent";
+      case "cancelled": return "bg-red-50 text-red-700 border-transparent";
+      default: return "bg-surface text-on-surface-variant border-outline-variant/30";
     }
   };
 
@@ -205,61 +221,68 @@ export default function Dashboard({ user, bookings, onUserUpdate }: DashboardPro
             </div>
 
             {upcomingBookings.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {upcomingBookings.map((booking) => (
-                  <motion.div 
-                    key={booking.id}
-                    layout
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-3xl sacred-shadow border-t-4 border-primary-container overflow-hidden group hover:scale-[1.02] transition-all"
-                  >
-                    <div className="p-8">
-                      <div className="flex justify-between items-start mb-6">
-                        <div>
-                          <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Ritual Booking</span>
-                          <h4 className="text-xl font-black text-on-surface mt-1">#{String(booking.id).slice(0, 8)}</h4>
-                        </div>
-                        <div className={cn(
-                          "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border",
-                          getStatusStyles(booking.status)
-                        )}>
-                          {booking.status}
-                        </div>
-                      </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                {upcomingBookings.map((booking: any) => {
+                  const displayDate = booking.scheduledDate 
+                    ? new Date(booking.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    : booking.scheduledAt ? new Date(booking.scheduledAt).toLocaleDateString() : "Not Scheduled";
+                  const displayTime = booking.scheduledTime || (booking.scheduledAt ? new Date(booking.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Not Selected");
 
-                      <div className="flex items-center gap-4 p-4 bg-surface-container rounded-2xl mb-6">
-                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary font-black text-xl">
-                          ॐ
+                  return (
+                    <motion.div 
+                      key={booking.id}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white rounded-3xl sacred-shadow border-t-4 border-primary overflow-hidden group hover:scale-[1.02] transition-all"
+                    >
+                      <div className="p-8">
+                        <div className="flex justify-between items-start mb-6">
+                          <div>
+                            <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">{booking.service || "Vedic Puja"}</span>
+                            <h4 className="text-xl font-black text-on-surface mt-1">#BPJ-{String(booking.id).slice(0, 8).toUpperCase()}</h4>
+                          </div>
+                          <div className={cn(
+                            "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20",
+                            getStatusStyles(booking.status)
+                          )}>
+                            {getStatusLabel(booking.status)}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60">Assigned Pandit</p>
-                          <p className="font-bold text-on-surface">Seeking Pandit...</p>
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-4 mb-8">
-                        <div className="flex items-center gap-3 text-on-surface-variant/60">
-                          <Calendar size={16} className="text-primary" />
-                          <span className="text-xs font-bold">{new Date(booking.scheduledAt).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-4 p-4 bg-surface rounded-2xl mb-6 border border-outline-variant/30">
+                          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary font-black text-xl">
+                            ॐ
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60">Assigned Acharya</p>
+                            <p className="font-bold text-on-surface">{booking.panditName || "Seeking Pandit..."}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 text-on-surface-variant/60">
-                          <Clock size={16} className="text-primary" />
-                          <span className="text-xs font-bold">{new Date(booking.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      </div>
 
-                      <div className="flex gap-4">
-                        <button className="flex-1 bg-primary text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest sacred-shadow hover:bg-primary-container transition-all flex items-center justify-center gap-2">
-                          <Navigation size={14} /> Track
-                        </button>
-                        <button className="flex-1 border border-primary text-primary py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
-                          <MessageCircle size={14} /> Chat
-                        </button>
+                        <div className="grid grid-cols-2 gap-4 mb-8">
+                          <div className="flex items-center gap-3 text-on-surface-variant/60">
+                            <Calendar size={16} className="text-primary" />
+                            <span className="text-xs font-bold">{displayDate}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-on-surface-variant/60">
+                            <Clock size={16} className="text-primary" />
+                            <span className="text-xs font-bold">{displayTime}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4">
+                          <Link to={`/booking/${booking.id}`} className="flex-1 bg-[#2C1006] text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest sacred-shadow hover:bg-primary transition-all flex items-center justify-center gap-2">
+                            <Navigation size={14} /> Track Status
+                          </Link>
+                          <button onClick={() => alert("Chat initialized with Pandit Ji")} className="flex-1 border border-primary text-primary py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
+                            <MessageCircle size={14} /> Chat
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </div>
             ) : (
               <div className="bg-white rounded-[3rem] p-16 text-center border-2 border-dashed border-outline-variant/30 sacred-shadow">
@@ -280,7 +303,7 @@ export default function Dashboard({ user, bookings, onUserUpdate }: DashboardPro
 
           {/* Past Bookings Section */}
           <section id="past">
-            <h2 className="text-2xl font-black text-on-surface mb-8 tracking-tight">Past Booking</h2>
+            <h2 className="text-2xl font-black text-on-surface mb-8 tracking-tight text-left">Past Booking</h2>
             <div className="bg-white rounded-[2.5rem] sacred-shadow overflow-hidden border border-outline-variant/20">
               {pastBookings.length > 0 ? (
                 <div className="overflow-x-auto custom-scrollbar">
@@ -288,6 +311,7 @@ export default function Dashboard({ user, bookings, onUserUpdate }: DashboardPro
                     <thead className="bg-surface-container-low text-on-surface-variant/60 font-black text-[10px] uppercase tracking-[0.2em] border-b border-outline-variant/20">
                       <tr>
                         <th className="px-8 py-5">Date</th>
+                        <th className="px-8 py-5">Puja</th>
                         <th className="px-8 py-5">ID</th>
                         <th className="px-8 py-5">Amount</th>
                         <th className="px-8 py-5">Status</th>
@@ -295,26 +319,32 @@ export default function Dashboard({ user, bookings, onUserUpdate }: DashboardPro
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/10 text-sm font-bold">
-                      {pastBookings.map((booking) => (
-                        <tr key={booking.id} className="hover:bg-surface-container-low/50 transition-colors">
-                          <td className="px-8 py-6 text-on-surface">{new Date(booking.scheduledAt).toLocaleDateString()}</td>
-                          <td className="px-8 py-6 text-on-surface-variant/60 font-mono tracking-tighter">#{String(booking.id).slice(0, 8)}</td>
-                          <td className="px-8 py-6 text-primary">₹{(booking as any).totalPrice || "---"}</td>
-                          <td className="px-8 py-6">
-                            <span className={cn(
-                              "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                              booking.status === 'completed' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                            )}>
-                              {booking.status}
-                            </span>
-                          </td>
-                          <td className="px-8 py-6 text-right">
-                            <button className="text-primary hover:underline text-xs font-black uppercase tracking-widest flex items-center gap-2 ml-auto group">
-                              <FileText size={14} className="group-hover:scale-110 transition-transform" /> Receipt
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {pastBookings.map((booking: any) => {
+                        const displayDate = booking.scheduledDate 
+                          ? new Date(booking.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                          : booking.scheduledAt ? new Date(booking.scheduledAt).toLocaleDateString() : "Not Scheduled";
+                        return (
+                          <tr key={booking.id} className="hover:bg-surface-container-low/50 transition-colors">
+                            <td className="px-8 py-6 text-on-surface">{displayDate}</td>
+                            <td className="px-8 py-6 text-on-surface font-bold">{booking.service || "Vedic Puja"}</td>
+                            <td className="px-8 py-6 text-on-surface-variant/60 font-mono tracking-tighter">#BPJ-{String(booking.id).slice(0, 8).toUpperCase()}</td>
+                            <td className="px-8 py-6 text-primary">₹{(booking.totalAmount || 0).toLocaleString()}</td>
+                            <td className="px-8 py-6">
+                              <span className={cn(
+                                "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/10",
+                                booking.status === 'completed' ? "bg-green-50 text-green-600 border-green-200" : "bg-red-50 text-red-600 border-red-200"
+                              )}>
+                                {getStatusLabel(booking.status)}
+                              </span>
+                            </td>
+                            <td className="px-8 py-6 text-right">
+                              <Link to={`/booking/${booking.id}`} className="text-primary hover:underline text-xs font-black uppercase tracking-widest flex items-center gap-2 ml-auto group">
+                                <FileText size={14} className="group-hover:scale-110 transition-transform" /> View Details
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
