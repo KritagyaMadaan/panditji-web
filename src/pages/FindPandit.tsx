@@ -391,7 +391,7 @@ export default function FindPandit() {
                     <Link to={`/pandit/${pandit.id}`} className="py-3.5 rounded-2xl border-2 border-text-dark/5 text-text-dark/60 font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-colors flex items-center justify-center">
                       View Profile
                     </Link>
-                    <Link to={`/book`} className="py-3.5 rounded-2xl bg-saffron text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-saffron/20 hover:shadow-xl hover:shadow-saffron/40 hover:bg-text-dark transition-all flex items-center justify-center">
+                    <Link to={`/book?pandit=${pandit.id}`} className="py-3.5 rounded-2xl bg-saffron text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-saffron/20 hover:shadow-xl hover:shadow-saffron/40 hover:bg-text-dark transition-all flex items-center justify-center">
                       Book Now
                     </Link>
                   </div>
