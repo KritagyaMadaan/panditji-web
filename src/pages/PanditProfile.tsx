@@ -262,7 +262,7 @@ export default function PanditProfile() {
                      Chat Now
                    </div>
                 </button>
-                <Link to="/book" className="flex-[1.5] md:w-64 py-5 rounded-[1.5rem] bg-saffron text-white font-black text-xs uppercase tracking-[0.2em] hover:bg-text-dark transition-all shadow-2xl shadow-saffron/30 flex items-center justify-center">
+                <Link to={`/book?pandit=${id}`} className="flex-[1.5] md:w-64 py-5 rounded-[1.5rem] bg-saffron text-white font-black text-xs uppercase tracking-[0.2em] hover:bg-text-dark transition-all shadow-2xl shadow-saffron/30 flex items-center justify-center">
                    Book Now
                 </Link>
               </div>
@@ -322,7 +322,7 @@ export default function PanditProfile() {
                     </div>
                     <div className="flex items-center gap-8">
                        <div className="text-2xl font-black text-text-dark">₹{service.price.toLocaleString()}</div>
-                       <Link to="/book" className="bg-text-dark text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-saffron transition-all shadow-xl shadow-text-dark/10">
+                       <Link to={`/book?pandit=${id}`} className="bg-text-dark text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-saffron transition-all shadow-xl shadow-text-dark/10">
                          Book
                        </Link>
                     </div>
@@ -513,7 +513,7 @@ export default function PanditProfile() {
                  </div>
               </div>
 
-              <Link to="/book" className="w-full py-5 bg-saffron text-white font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] shadow-2xl shadow-saffron/40 hover:bg-text-dark transition-all duration-500 flex items-center justify-center">
+              <Link to={`/book?pandit=${id}`} className="w-full py-5 bg-saffron text-white font-black text-xs uppercase tracking-[0.2em] rounded-[1.5rem] shadow-2xl shadow-saffron/40 hover:bg-text-dark transition-all duration-500 flex items-center justify-center">
                 Confirm Booking
               </Link>
               
