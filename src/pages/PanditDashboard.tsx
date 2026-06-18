@@ -686,7 +686,7 @@ export default function PanditDashboard({ user }: { user: any }) {
                         <p className="text-xs font-bold text-red-500">{uploadError}</p>
                       )}
 
-                      <p className="text-[10px] text-on-surface-variant/40 font-medium">JPG, PNG or WEBP • Max 5MB</p>
+                      <p className="text-[10px] text-on-surface-variant/40 font-medium">JPG, PNG or WEBP • Max 800KB</p>
                     </div>
                   </div>
                 </div>
