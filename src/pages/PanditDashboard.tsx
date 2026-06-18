@@ -67,9 +67,42 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
 export default function PanditDashboard({ user }: { user: any }) {
   const navigate = useNavigate();
   const [isAvailable, setIsAvailable] = useState(true);
-  const [requests, setRequests] = useState<Request[]>(initialRequests);
+  const [requests, setRequests] = useState<any[]>([]);
   const [activeBookingStatus, setActiveBookingStatus] = useState<BookingStatus>('en_route');
   
+  // --- Invitations & Calendar states ---
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
+  const [calendarDate, setCalendarDate] = useState<Date>(new Date());
+  
+  const getTodayStr = () => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+  const [selectedDateStr, setSelectedDateStr] = useState<string>(getTodayStr());
+
+  const fetchInvitations = async () => {
+    const uid = auth.currentUser?.uid || user?.uid || user?.id;
+    if (!uid) return;
+    setInvitationsLoading(true);
+    try {
+      const q = query(
+        collection(db, "bookings"),
+        where("panditId", "==", uid),
+        where("status", "==", "pending")
+      );
+      const snap = await getDocs(q);
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setRequests(docs);
+    } catch (err) {
+      console.error("Error fetching invitations:", err);
+    } finally {
+      setInvitationsLoading(false);
+    }
+  };
+
   // --- All Bookings Modal state ---
   const [isBookingsOpen, setIsBookingsOpen] = useState(false);
   const [allBookings, setAllBookings] = useState<any[]>([]);
@@ -1007,14 +1040,30 @@ export default function PanditDashboard({ user }: { user: any }) {
                   <div className="space-y-4">
                     {allBookings.map((booking, idx) => {
                       const statusInfo = STATUS_STYLES[booking.status] || STATUS_STYLES.pending;
-                      const bookedDate = booking.scheduledAt?.toDate
-                        ? booking.scheduledAt.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-                        : booking.scheduledAt
-                          ? new Date(booking.scheduledAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-                          : "—";
+                      
+                      const bookedDate = booking.scheduledDate
+                        ? new Date(booking.scheduledDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                        : booking.scheduledAt?.toDate
+                          ? booking.scheduledAt.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                          : booking.scheduledAt
+                            ? new Date(booking.scheduledAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                            : "—";
+
+                      const bookedTime = booking.scheduledTime || (booking.scheduledAt 
+                        ? new Date(booking.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : "");
+
                       const createdDate = booking.createdAt?.toDate
                         ? booking.createdAt.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
                         : "—";
+
+                      const displayAddress = typeof booking.address === "object" && booking.address
+                        ? `${booking.address.houseNo || ""}, ${booking.address.fullAddress || ""}, ${booking.address.city || ""} - ${booking.address.pincode || ""}`
+                        : booking.address || "";
+
+                      const displayAmount = booking.totalAmount !== undefined
+                        ? Number(booking.totalAmount).toLocaleString("en-IN")
+                        : null;
 
                       return (
                         <motion.div
@@ -1022,7 +1071,7 @@ export default function PanditDashboard({ user }: { user: any }) {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: idx * 0.04 }}
-                          className="bg-surface-container-low rounded-3xl p-6 border border-outline-variant/20 hover:border-primary/20 transition-all group"
+                          className="bg-surface-container-low rounded-3xl p-6 border border-outline-variant/20 hover:border-primary/20 transition-all group text-left"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div className="flex-1 space-y-2">
@@ -1044,22 +1093,22 @@ export default function PanditDashboard({ user }: { user: any }) {
                                   </span>
                                 )}
                                 <span className="flex items-center gap-1">
-                                  <Calendar size={11} /> Ceremony: {bookedDate}
+                                  <Calendar size={11} /> Ceremony: {bookedDate} {bookedTime ? `at ${bookedTime}` : ""}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock size={11} /> Booked on: {createdDate}
                                 </span>
-                                {booking.address && (
+                                {displayAddress && (
                                   <span className="flex items-center gap-1">
-                                    <MapPin size={11} /> {booking.address}
+                                    <MapPin size={11} /> {displayAddress}
                                   </span>
                                 )}
                               </div>
                             </div>
-                            {booking.totalAmount && (
+                            {displayAmount && (
                               <div className="flex items-center gap-1 text-primary font-black text-lg shrink-0">
                                 <IndianRupee size={16} />
-                                {parseFloat(booking.totalAmount).toLocaleString("en-IN")}
+                                {displayAmount}
                               </div>
                             )}
                           </div>
